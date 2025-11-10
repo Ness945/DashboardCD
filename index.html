@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Michelin Gravanches - Gestion CD</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="toast.css">
+    <link rel="stylesheet" href="loading.css">
+    <link rel="stylesheet" href="design-enhancements.css">
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-nav">
+        
+        <div class="nav-container">
+            <div class="nav-logo">
+                <h1>Michelin Gravanches - Gestion CD</h1>
+                <p>Lancement de Campagne</p>
+            </div>
+            <!-- Global Date Filter (au-dessus des onglets) -->
+<div class="global-date-filter">
+  <div class="gdf-quick">
+    <span class="gdf-label">Période :</span>
+    <button class="badge-btn gdf-badge" data-range="1d">1J</button>
+    <button class="badge-btn gdf-badge" data-range="7d">7J</button>
+    <button class="badge-btn gdf-badge" data-range="1m">1 M</button>
+    <button class="badge-btn gdf-badge" data-range="6m">6 M</button>
+    <button class="badge-btn gdf-badge" data-range="1y">1 AN</button>
+    <button class="btn btn--secondary btn--small" id="gdfReset">Tout</button>
+  </div>
+  <div class="gdf-range">
+    <input type="date" id="gdfStart" class="form-control" />
+    <span class="gdf-sep">→</span>
+    <input type="date" id="gdfEnd" class="form-control" />
+    <button class="btn btn--primary btn--small" id="gdfApply">Appliquer</button>
+  </div>
+</div>
+<div class="nav-tabs">
+                <button class="nav-tab active" data-tab="accueil">Accueil</button>
+                <button class="nav-tab" data-tab="saisir">Saisir CD</button>
+                <button class="nav-tab" data-tab="historique">Historique</button>
+                <button class="nav-tab" data-tab="feedback">Feedback</button>
+                <button class="nav-tab" data-tab="stats">Stats</button>
+                <button class="nav-tab" data-tab="manager">Vue Manager</button>
+                <button class="nav-tab" data-tab="machine">Machine</button>
+                <button class="nav-tab" data-tab="qualite">Qualité</button>
+                <button class="nav-tab" data-tab="insights">📊 Insights</button>
+                <button class="nav-tab" data-tab="admin">Admin</button>
+                <button class="nav-tab" data-tab="sauvegarde">💾 Sauvegarde</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- VUE 0: ACCUEIL (DASHBOARD) -->
+        <section id="accueil" class="tab-content active">
+            <h2>Tableau de bord - Synthèse générale</h2>
+            
+            <!-- KPI Cards -->
+            <div class="kpi-container" id="kpiContainer">
+                <!-- Rempli par JavaScript -->
+            </div>
+            
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <!-- Pie Chart: Répartition Retour Archi -->
+                <div class="chart-card">
+                    <h3>Répartition des Retours Archi</h3>
+                    <div class="pie-chart-container" id="pieChartRetourArchi">
+                        <!-- Rempli par JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Bar Chart: Type Machine -->
+                <div class="chart-card">
+                    <h3>Répartition par Type de Machine</h3>
+                    <div class="bar-chart-container" id="barChartMachine">
+                        <!-- Rempli par JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Bar Chart: Type CD -->
+                <div class="chart-card">
+                    <h3>Répartition par Type de CD</h3>
+                    <div class="bar-chart-container" id="barChartTypeCD">
+                        <!-- Rempli par JavaScript -->
+                    </div>
+                </div>
+                </div>
+            </div>
+        </section>
+        <!-- VUE STATS -->
+        <section id="stats" class="tab-content">
+            <h2>Statistiques - Évolution Temporelle</h2>
+            <div id="statsContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+        </section>
+
+        <!-- VUE MANAGER -->
+        <section id="manager" class="tab-content">
+            <h2>Vue Manager - Classement Opérateurs</h2>
+            <div id="managerContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+        </section>
+
+        <!-- VUE MACHINE -->
+        <section id="machine" class="tab-content">
+            <h2>Performance des Machines</h2>
+            <div id="machineContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+        </section>
+
+        <!-- VUE QUALITÉ -->
+        <section id="qualite" class="tab-content">
+            <h2>Qualité - Analyse Retours Archi et CQ</h2>
+            <div id="qualiteContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+        </section>
+
+        <!-- VUE INSIGHTS -->
+        <section id="insights" class="tab-content">
+            <h2>📊 Insights & Analytics Avancés</h2>
+
+            <!-- Recommandations -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>💡 Recommandations</h3>
+            </div>
+            <div id="recommendationsContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Meilleurs Binômes -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>🏆 Top 10 Meilleurs Binômes</h3>
+            </div>
+            <div class="table-container">
+                <table id="tableBestTeams">
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Binôme</th>
+                            <th>Performance Moyenne</th>
+                            <th>Taux NIV 1</th>
+                            <th>Nombre de CD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rempli par JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Machines Problématiques -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>⚠️ Machines à Surveiller</h3>
+            </div>
+            <div class="table-container">
+                <table id="tableProblematicMachines">
+                    <thead>
+                        <tr>
+                            <th>Machine</th>
+                            <th>Type</th>
+                            <th>Performance Moyenne</th>
+                            <th>Anomalies</th>
+                            <th>Problèmes Qualité</th>
+                            <th>Nombre de CD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rempli par JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tendances Hebdomadaires -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>📈 Tendances Hebdomadaires</h3>
+            </div>
+            <div class="chart-card">
+                <canvas id="weeklyTrendsChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
+
+        <!-- VUE 1: ADMINISTRATION -->
+        <section id="admin" class="tab-content">
+            <div class="admin-header">
+                <h2>Administration</h2>
+                <p class="admin-subtitle">Configurez les opérateurs, machines, codes qualité et paramètres de performance</p>
+            </div>
+            
+            <!-- Section 1: Gestion des Opérateurs -->
+            <div class="collapsible-section" id="section-operateurs">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-operateurs')">
+                    <div class="collapsible-icon">👥</div>
+                    <h3 class="collapsible-title">Gestion des Opérateurs</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Ajouter un nouvel opérateur</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newOperateurNom" placeholder="Nom complet de l'opérateur" class="form-control" style="flex: 1;">
+                                <button class="btn btn--primary" onclick="ajouterOperateur()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Date d'ajout</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableOperateurs"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Gestion des Machines -->
+            <div class="collapsible-section" id="section-machines">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-machines')">
+                    <div class="collapsible-icon">🏭</div>
+                    <h3 class="collapsible-title">Gestion des Machines</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Configurez les machines de production disponibles dans l'atelier (SPRINT, GMT, SPRINT FLASH).</p>
+                        </div>
+                        
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Ajouter une nouvelle machine</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newMachineNumero" placeholder="N° Machine (ex: M001)" class="form-control" style="flex: 1;">
+                                <select id="newMachineType" class="form-control" style="flex: 1;">
+                                    <option value="">-- Type de machine --</option>
+                                    <option value="SPRINT">SPRINT</option>
+                                    <option value="GMT">GMT</option>
+                                    <option value="SPRINT FLASH">SPRINT FLASH</option>
+                                </select>
+                                <button class="btn btn--primary" onclick="ajouterMachine()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>N° Machine</th>
+                                        <th>Type</th>
+                                        <th>Statut</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableMachines"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Configuration des Scores de Performance -->
+            <div class="collapsible-section" id="section-config-scores">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-config-scores')">
+                    <div class="collapsible-icon">⚙️</div>
+                    <h3 class="collapsible-title">Configuration Scores de Performance</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Configurez les points de performance associés à chaque niveau de Retour Archi (NIV 1, NIV 2, NIV 2 CC, NIV 3). Les scores influencent directement le calcul de la performance globale des opérateurs.</p>
+                            <div class="info-box">
+                                <strong>ℹ️ Information :</strong> Plus le score est élevé, moins l'impact sur la performance. NIV 1 = 100 pts (aucun défaut), NIV 3 = score minimal.
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Niveau</th>
+                                        <th>Couleur</th>
+                                        <th>Score Actuel</th>
+                                        <th>Nouveau Score (0-100 pts)</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableScoresPerformance"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Codes Retour Archi -->
+            <div class="collapsible-section" id="section-codes-retour">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-codes-retour')">
+                    <div class="collapsible-icon">📝</div>
+                    <h3 class="collapsible-title">Codes Retour Archi</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Gérez les codes de retour qualité Archi associés aux niveaux 2, 2 CC et 3. Ces codes permettent de catégoriser les défauts de production.</p>
+                        </div>
+                        
+                        <div class="filter-section">
+                            <label class="form-label">🔍 Filtrer par niveau :</label>
+                            <select id="filterNiveauRetour" class="form-control" onchange="filtrerCodesRetour()" style="max-width: 250px;">
+                                <option value="">Tous les niveaux</option>
+                                <option value="2">NIV 2</option>
+                                <option value="2_cc">NIV 2 CC</option>
+                                <option value="3">NIV 3</option>
+                            </select>
+                        </div>
+                        
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Ajouter un nouveau code Retour Archi</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newCodeQualiteCode" placeholder="Code (ex: RA001)" class="form-control" style="flex: 1;">
+                                <input type="text" id="newCodeQualiteDesc" placeholder="Description du défaut" class="form-control" style="flex: 2;">
+                                <select id="newCodeQualiteNiveau" class="form-control" style="flex: 1;">
+                                    <option value="">-- Niveau --</option>
+                                    <option value="2">NIV 2 (70 pts)</option>
+                                    <option value="2_grave">NIV 2 CC (50 pts)</option>
+                                    <option value="3">NIV 3 (30 pts)</option>
+                                </select>
+                                <button class="btn btn--primary" onclick="ajouterCodeQualite()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                        <th>Niveau</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableCodesQualite"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Codes CQ (Contrôle Qualité) -->
+            <div class="collapsible-section" id="section-codes-cq">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-codes-cq')">
+                    <div class="collapsible-icon">🔍</div>
+                    <h3 class="collapsible-title">Codes CQ (Contrôle Qualité)</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Gérez les codes de contrôle qualité (CQ) utilisés pour identifier les défauts détectés après production.</p>
+                        </div>
+                        
+                        <div class="filter-section">
+                            <label class="form-label">🔍 Rechercher :</label>
+                            <input type="text" id="searchCodesCQ" class="form-control" placeholder="Rechercher un code CQ..." onkeyup="filtrerCodesCQ()" style="max-width: 350px;">
+                        </div>
+                        
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Ajouter un nouveau code CQ</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newCodeCQCode" placeholder="Code (ex: CQ001)" class="form-control" style="flex: 1;">
+                                <input type="text" id="newCodeCQDesc" placeholder="Description du défaut CQ" class="form-control" style="flex: 3;">
+                                <button class="btn btn--primary" onclick="ajouterCodeCQ()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableCodesCQ"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 6: Codes Incidents -->
+            <div class="collapsible-section" id="section-codes-incident">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-codes-incident')">
+                    <div class="collapsible-icon">⚠️</div>
+                    <h3 class="collapsible-title">Codes Incidents</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Gérez les codes d'incidents utilisés pour documenter les problèmes rencontrés pendant la production (pannes, arrêts, problèmes techniques).</p>
+                        </div>
+
+                        <div class="filter-section">
+                            <label class="form-label">🔍 Rechercher :</label>
+                            <input type="text" id="searchCodesIncident" class="form-control" placeholder="Rechercher un code incident..." onkeyup="filtrerCodesIncident()" style="max-width: 350px;">
+                        </div>
+
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Ajouter un nouveau code incident</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newCodeIncidentCode" placeholder="Code (ex: INC001)" class="form-control" style="flex: 1;">
+                                <input type="text" id="newCodeIncidentDesc" placeholder="Description de l'incident" class="form-control" style="flex: 3;">
+                                <button class="btn btn--primary" onclick="ajouterCodeIncident()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableCodesIncident"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 7: Gestion des Tags -->
+            <div class="collapsible-section" id="section-tags">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-tags')">
+                    <div class="collapsible-icon">🏷️</div>
+                    <h3 class="collapsible-title">Gestion des Tags</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div class="section-description">
+                            <p>Créez et gérez des tags pour catégoriser vos CD (Formation, Nouveau Produit, Problème Résolu, etc.). Les tags vous permettent de filtrer rapidement les CD dans l'historique.</p>
+                        </div>
+
+                        <div class="admin-form-card">
+                            <h4 class="form-card-title">Créer un nouveau tag</h4>
+                            <div class="form-group-horizontal">
+                                <input type="text" id="newTagNom" placeholder="Nom du tag (ex: Formation)" class="form-control" style="flex: 2;">
+                                <input type="color" id="newTagCouleur" value="#2196F3" class="form-control" style="flex: 0 0 80px; cursor: pointer; height: 42px;">
+                                <button class="btn btn--primary" onclick="ajouterTag()">
+                                    <span>➕</span> Ajouter
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Tag</th>
+                                        <th>Couleur</th>
+                                        <th style="text-align: center;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableTagsList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VUE 2: SAISIE CD -->
+        <section id="saisir" class="tab-content">
+            <h2>Saisir un Changement de Dimension</h2>
+            <form id="formSaisieCD" class="cd-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="cdDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Heure CD</label>
+                        <select id="cdHeure" class="form-control" required>
+                            <option value="">-- Sélectionner --</option>
+                            <option value="06:00">06:00</option>
+                            <option value="08:00">08:00</option>
+                            <option value="10:00">10:00</option>
+                            <option value="14:00">14:00</option>
+                            <option value="18:00">18:00</option>
+                            <option value="autre">Autre...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Type de Production</label>
+                    <div class="badge-group">
+                        <button type="button" class="badge-btn" data-value="MC">MC</button>
+                        <button type="button" class="badge-btn" data-value="JALON LI">JALON LI</button>
+                        <button type="button" class="badge-btn" data-value="INDUS">INDUS</button>
+                    </div>
+                    <input type="hidden" id="cdTypeProd" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Type de Machine</label>
+                    <div class="badge-group">
+                        <button type="button" class="badge-btn" data-value="SPR">SPR</button>
+                        <button type="button" class="badge-btn" data-value="GMT">GMT</button>
+                        <button type="button" class="badge-btn" data-value="SPR FLSH">SPR FLSH</button>
+                    </div>
+                    <input type="hidden" id="cdTypeMachine" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">N° Machine</label>
+                        <select id="cdNumMachine" class="form-control" required>
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Type CD</label>
+                        <input type="text" id="cdTypeCD" class="form-control" value="Normal" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">CAI</label>
+                        <input type="text" id="cdCAI" class="form-control" placeholder="Ex: 651885B" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dimension</label>
+                        <input type="text" id="cdDimension" class="form-control" placeholder="Ex: 285/30/20" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Opérateur CONF1 (PNC)</label>
+                        <select id="cdConf1" class="form-control" required>
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Opérateur CONF2 (PNS)</label>
+                        <select id="cdConf2" class="form-control" required>
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">D1 Réel (heures)</label>
+                        <input type="number" id="cdD1Reel" class="form-control" step="0.5" min="0.5" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">D1 Net (heures)</label>
+                        <input type="number" id="cdD1Net" class="form-control" step="0.5" min="0.5" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Retour Archi</label>
+                    <div class="badge-group">
+                        <button type="button" class="badge-btn badge-niv1" data-value="1">NIV 1</button>
+                        <button type="button" class="badge-btn badge-niv2" data-value="2">NIV 2</button>
+                        <button type="button" class="badge-btn badge-niv2-cc" data-value="2_cc">NIV 2 CC</button>
+                        <button type="button" class="badge-btn badge-niv3" data-value="3">NIV 3</button>
+                    </div>
+                    <input type="hidden" id="cdQualite" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">CQ Après CD</label>
+                    <div class="badge-group">
+                        <button type="button" class="badge-btn" data-value="Oui">Oui</button>
+                        <button type="button" class="badge-btn" data-value="Non">Non</button>
+                    </div>
+                    <input type="hidden" id="cdCQApres" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Incident</label>
+                    <div class="badge-group">
+                        <button type="button" class="badge-btn" data-value="Oui">Oui</button>
+                        <button type="button" class="badge-btn" data-value="Non">Non</button>
+                    </div>
+                    <input type="hidden" id="cdIncident" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Commentaire</label>
+                    <textarea id="cdCommentaire" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tags (optionnel)</label>
+                    <div id="cdTagsSelector" class="cd-tags-selector">
+                        <!-- Tags générés dynamiquement -->
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn--primary">Enregistrer CD</button>
+                    <button type="button" class="btn btn--secondary" onclick="reinitialiserFormCD()">Réinitialiser</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- VUE 3: HISTORIQUE -->
+        <section id="historique" class="tab-content">
+            <h2>Historique des CD</h2>
+
+            <!-- Filtres de base existants -->
+            <div class="historique-controls">
+                <input type="text" id="searchHistorique" placeholder="Rechercher (CAI, Dimension...)" class="form-control">
+                <select id="filterQualite" class="form-control">
+                    <option value="">Tous les niveaux</option>
+                    <option value="1">NIV 1</option>
+                    <option value="2">NIV 2</option>
+                    <option value="2_cc">NIV 2 CC</option>
+                    <option value="3">NIV 3</option>
+                </select>
+                <select id="filterMachine" class="form-control">
+                    <option value="">Toutes les machines</option>
+                </select>
+                <button class="btn btn--secondary" onclick="appliquerFiltres()">Filtrer</button>
+                <button class="btn btn--secondary" onclick="resetFiltres()">Réinitialiser</button>
+            </div>
+
+            <!-- Recherche avancée -->
+            <div class="advanced-search-container" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                        🔍 Recherche avancée
+                    </label>
+                    <input
+                        type="text"
+                        id="advancedSearch"
+                        placeholder="Rechercher dans CAI, Dimension, Date, Type Prod, Opérateurs, Machine..."
+                        class="form-control"
+                        onkeyup="rechercheAvancee(this.value)"
+                        style="font-size: 14px;">
+                </div>
+
+                <!-- Filtres rapides -->
+                <div class="quick-filters-section" style="margin-bottom: 15px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 600;">⚡ Filtres rapides</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="filter-anomaliesOnly" class="quick-filter-btn" onclick="toggleQuickFilter('anomaliesOnly')">
+                            ⚠️ Anomalies uniquement
+                        </button>
+                        <button id="filter-cqThisWeek" class="quick-filter-btn" onclick="toggleQuickFilter('cqThisWeek')">
+                            📅 CQ cette semaine
+                        </button>
+                        <button id="filter-lowPerformance" class="quick-filter-btn" onclick="toggleQuickFilter('lowPerformance')">
+                            📉 Performance < 80%
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtres par tags - version discrète -->
+                <div class="tags-filter-section">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 12px; color: var(--color-text-secondary);">🏷️ Filtrer par tags</label>
+                    <div id="quickTagsFilter" style="display: flex; gap: 6px; flex-wrap: wrap; min-height: 28px;">
+                        <!-- Tags générés dynamiquement -->
+                    </div>
+                </div>
+
+                <!-- Compteur de résultats -->
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                    <span id="filterResultsCount" style="font-size: 13px; color: #6c757d; font-weight: 500;"></span>
+                    <button class="btn btn--secondary btn--small" onclick="resetFiltresAvances()" style="float: right; padding: 4px 12px; font-size: 13px;">
+                        🔄 Réinitialiser filtres avancés
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="trierHistorique('date')">Date</th>
+                            <th>Heure</th>
+                            <th>Type Prod</th>
+                            <th>Machine</th>
+                            <th>CAI</th>
+                            <th>Dimension</th>
+                            <th>CONF1</th>
+                            <th>CONF2</th>
+                            <th>D1 Réel</th>
+                            <th>D1 Net</th>
+                            <th>Retour Archi</th>
+                            <th onclick="trierHistorique('performance')">Performance</th>
+                            <th>CQ Après CD</th>
+                            <th>Incident</th>
+                            <th>Anomalie</th>
+                            <th>Tags</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableHistorique"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- VUE 4: FEEDBACK -->
+        <section id="feedback" class="tab-content">
+            <h2>Feedback Individuel</h2>
+            <div class="form-group">
+                <label class="form-label">Sélectionner un opérateur</label>
+                <select id="feedbackOperateur" class="form-control" onchange="afficherFeedback()">
+                    <option value="">-- Sélectionner --</option>
+                </select>
+            </div>
+            <div id="feedbackContent" class="feedback-content"></div>
+        </section>
+
+        <!-- VUE 5: SAUVEGARDE -->
+        <section id="sauvegarde" class="tab-content">
+            <h2>Sauvegarde et Restauration des données</h2>
+            
+            <!-- Section 1: Export -->
+            <div class="collapsible-section" id="section-export">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-export')">
+                    <div class="collapsible-icon">💾</div>
+                    <h3 class="collapsible-title">Export des données</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <p style="font-size: var(--font-size-base); color: var(--color-text-secondary); margin-bottom: var(--space-16);">
+                            Téléchargez une sauvegarde complète de vos données en JSON. Conservez cette sauvegarde en sécurité.
+                        </p>
+                        <button class="btn btn--primary" onclick="exporterDonneesSauvegarde()" style="font-size: var(--font-size-lg); padding: var(--space-12) var(--space-24);">
+                            💾 Exporter les données
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 2: Import -->
+            <div class="collapsible-section" id="section-import">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-import')">
+                    <div class="collapsible-icon">📤</div>
+                    <h3 class="collapsible-title">Import des données</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <p style="font-size: var(--font-size-base); color: var(--color-text-secondary); margin-bottom: var(--space-16);">
+                            Importez une sauvegarde JSON précédente. <strong style="color: var(--color-error);">ATTENTION:</strong> Cette action remplacera les données actuelles.
+                        </p>
+                        <button class="btn btn--primary" onclick="document.getElementById('importFileSauvegarde').click()" style="font-size: var(--font-size-lg); padding: var(--space-12) var(--space-24);">
+                            📤 Importer les données
+                        </button>
+                        <input type="file" id="importFileSauvegarde" accept=".json" style="display: none;" onchange="importerDonneesSauvegarde(event)">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 3: Info sauvegarde actuelle -->
+            <div class="collapsible-section" id="section-info-sauvegarde">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-info-sauvegarde')">
+                    <div class="collapsible-icon">📊</div>
+                    <h3 class="collapsible-title">Info sauvegarde actuelle</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <div id="infoSauvegardeContent">
+                            <!-- Rempli par JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section 4: Conseils -->
+            <div class="collapsible-section" id="section-conseils">
+                <div class="collapsible-header" onclick="toggleCollapsible('section-conseils')">
+                    <div class="collapsible-icon">💡</div>
+                    <h3 class="collapsible-title">Conseils</h3>
+                    <div class="collapsible-chevron">&gt;</div>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-body">
+                        <h4 style="margin-bottom: var(--space-12); color: var(--color-primary);">Bonnes pratiques de sauvegarde</h4>
+                        <ul style="list-style-position: outside; margin-left: var(--space-20); line-height: 1.8;">
+                            <li><strong>Sauvegardes régulières :</strong> Effectuez des sauvegardes après chaque session de saisie importante</li>
+                            <li><strong>Plusieurs versions :</strong> Conservez plusieurs sauvegardes datées pour pouvoir revenir en arrière si nécessaire</li>
+                            <li><strong>Stockage sécurisé :</strong> Conservez vos fichiers de sauvegarde sur un disque externe, clé USB ou cloud sécurisé</li>
+                            <li><strong>Nomenclature :</strong> Les fichiers exportés incluent automatiquement la date et l'heure (format: michelin_cd_data_YYYY-MM-DD_HH-MM-SS.json)</li>
+                            <li><strong>Vérification :</strong> Après un import, vérifiez que les données sont correctes en consultant l'historique</li>
+                        </ul>
+                        
+                        <h4 style="margin-top: var(--space-24); margin-bottom: var(--space-12); color: var(--color-primary);">Format JSON</h4>
+                        <p style="color: var(--color-text-secondary); line-height: 1.6;">
+                            Le fichier JSON exporté contient toutes vos données structurées :
+                        </p>
+                        <ul style="list-style-position: outside; margin-left: var(--space-20); line-height: 1.8; color: var(--color-text-secondary);">
+                            <li>Liste des opérateurs</li>
+                            <li>Liste des machines</li>
+                            <li>Codes Retour Archi, codes CQ et codes incidents</li>
+                            <li>Tous les CD enregistrés avec leurs données complètes</li>
+                            <li>Configuration des niveaux de qualité et scores</li>
+                        </ul>
+                        
+                        <div style="margin-top: var(--space-20); padding: var(--space-16); background: var(--color-bg-1); border-radius: var(--radius-base); border-left: 4px solid var(--color-primary);">
+                            <p style="font-size: var(--font-size-sm); color: var(--color-text); margin: 0;">
+                                <strong>💡 Astuce :</strong> Le fichier JSON est lisible et peut être ouvert avec un éditeur de texte. Cependant, ne modifiez pas manuellement son contenu pour éviter toute corruption des données.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Heure Custom -->
+    <div id="modalHeureCustom" class="modal">
+        <div class="modal-content">
+            <h3>Saisir une heure personnalisée</h3>
+            <input type="time" id="heureCustomInput" class="form-control">
+            <div class="modal-actions">
+                <button class="btn btn--primary" onclick="validerHeureCustom()">Valider</button>
+                <button class="btn btn--secondary" onclick="fermerModal('modalHeureCustom')">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Code Retour Archi -->
+    <div id="modalCodeQualite" class="modal">
+        <div class="modal-content">
+            <h3>Sélectionner un code Retour Archi</h3>
+            <select id="codeQualiteSelect" class="form-control">
+                <option value="">-- Sélectionner --</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn--primary" onclick="validerCodeQualite()">Valider</button>
+                <button class="btn btn--secondary" onclick="fermerModal('modalCodeQualite')">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Code CQ -->
+    <div id="modalCodeCQ" class="modal">
+        <div class="modal-content">
+            <h3>Sélectionner un code CQ</h3>
+            <select id="codeCQSelect" class="form-control">
+                <option value="">-- Sélectionner --</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn--primary" onclick="validerCodeCQ()">Valider</button>
+                <button class="btn btn--secondary" onclick="fermerModal('modalCodeCQ')">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Incident -->
+    <div id="modalIncident" class="modal">
+        <div class="modal-content">
+            <h3>Détails de l'incident</h3>
+            <select id="codeIncidentSelect" class="form-control">
+                <option value="">-- Sélectionner un code --</option>
+            </select>
+            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn--primary" onclick="validerIncident()">Valider</button>
+                <button class="btn btn--secondary" onclick="fermerModal('modalIncident')">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Détails CD -->
+    <div id="modalDetailsCD" class="modal-overlay">
+        <div id="detailsCDContainer" class="modal-container">
+            <!-- Contenu généré dynamiquement par JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal Éditer CD -->
+    <div id="modalEditerCD" class="modal">
+        <div class="modal-content modal-large">
+            <h3>Éditer le CD</h3>
+            <div id="editCDContent"></div>
+        </div>
+    </div>
+
+    <!-- New Enhancement Modules -->
+    <script src="toast.js"></script>
+    <script src="storage.js"></script>
+    <script src="validation.js"></script>
+    <script src="loading.js"></script>
+    <script src="undo-redo.js"></script>
+    <script src="shortcuts.js"></script>
+    <script src="charts.js"></script>
+    <script src="excel-export.js"></script>
+    <script src="analytics.js"></script>
+    <script src="insights-ui.js"></script>
+    <script src="advanced-filters.js"></script>
+    <script src="ui-enhancements.js"></script>
+
+    <!-- Main Application -->
+    <script src="app.js"></script>
+</body>
+</html>
