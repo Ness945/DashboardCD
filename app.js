@@ -2354,7 +2354,7 @@ function afficherFeedback() {
               <th>D1 Réel</th>
               <th>D1 Net</th>
               <th>Qualité</th>
-              <th>Performance</th>
+              <th>Perf</th>
               <th>CQ Après CD</th>
               <th>Incident</th>
               <th>Anomalie</th>
