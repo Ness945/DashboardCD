@@ -3,15 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Application de gestion des Changements de Dimension - Michelin Gravanches">
+    <meta name="theme-color" content="#21808D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Michelin Gravanches - Gestion CD</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="toast.css">
     <link rel="stylesheet" href="loading.css">
     <link rel="stylesheet" href="design-enhancements.css">
+    <link rel="stylesheet" href="comparative-stats.css">
+    <link rel="stylesheet" href="visual-alerts.css">
 
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('✅ Service Worker enregistré:', registration);
+            })
+            .catch((error) => {
+              console.log('❌ Erreur Service Worker:', error);
+            });
+        });
+      }
+    </script>
 </head>
 <body>
     <!-- Navigation -->
@@ -65,7 +91,23 @@
             <div class="kpi-container" id="kpiContainer">
                 <!-- Rempli par JavaScript -->
             </div>
-            
+
+            <!-- Alertes Visuelles -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>🚨 Alertes & Surveillance</h3>
+            </div>
+            <div id="alertsContainer">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Statistiques Comparatives -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>📊 Statistiques Comparatives</h3>
+            </div>
+            <div id="comparativeStatsContainer">
+                <!-- Rempli par JavaScript -->
+            </div>
+
             <!-- Charts Grid -->
             <div class="charts-grid">
                 <!-- Pie Chart: Répartition Retour Archi -->
@@ -922,6 +964,7 @@
     <!-- New Enhancement Modules -->
     <script src="toast.js"></script>
     <script src="storage.js"></script>
+    <script src="indexeddb-storage.js"></script>
     <script src="validation.js"></script>
     <script src="loading.js"></script>
     <script src="undo-redo.js"></script>
@@ -932,6 +975,8 @@
     <script src="insights-ui.js"></script>
     <script src="advanced-filters.js"></script>
     <script src="ui-enhancements.js"></script>
+    <script src="comparative-stats.js"></script>
+    <script src="visual-alerts.js"></script>
 
     <!-- Main Application -->
     <script src="app.js"></script>

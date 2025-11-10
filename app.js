@@ -1068,6 +1068,7 @@ function afficherHistorique(filteredData = null) {
     }
     
     const tr = document.createElement('tr');
+    tr.dataset.cdId = cd.id; // Ajouter l'ID pour les alertes visuelles
 
     // Gérer les CD cachés (grisés)
     if (cd.cache) {
@@ -1189,6 +1190,11 @@ function afficherHistorique(filteredData = null) {
     `;
     tbody.appendChild(tr);
   });
+
+  // Appliquer les alertes visuelles
+  if (typeof visualAlerts !== 'undefined') {
+    visualAlerts.applyAlertsToHistorique();
+  }
 }
 
 let currentModalCDId = null;
@@ -2260,13 +2266,23 @@ function afficherAccueil() {
     </div>
   `;
   document.getElementById('kpiContainer').innerHTML = kpiHTML;
-  
+
+  // Alertes visuelles
+  if (typeof visualAlerts !== 'undefined') {
+    visualAlerts.showAlertsInDashboard('alertsContainer');
+  }
+
+  // Statistiques comparatives
+  if (typeof afficherStatsComparatives === 'function') {
+    afficherStatsComparatives();
+  }
+
   // Pie Chart: Répartition Retour Archi
   afficherPieChartRetourArchi(cdActifs);
-  
+
   // Bar Chart: Type Machine
   afficherBarChartMachine(cdActifs);
-  
+
   // Bar Chart: Type CD
   afficherBarChartTypeCD(cdActifs);
 }
