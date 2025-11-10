@@ -1800,22 +1800,22 @@ function afficherFeedback() {
         <div class="bar-item">
           <div class="bar-label">NIV 1</div>
           <div class="bar-visual"><div class="bar-fill niv1" style="width: ${pctNiv1}%"></div></div>
-          <div class="bar-value">${pctNiv1}% (${niv1})</div>
+          <div class="bar-value">${pctNiv1}%</div>
         </div>
         <div class="bar-item">
           <div class="bar-label">NIV 2</div>
           <div class="bar-visual"><div class="bar-fill niv2" style="width: ${pctNiv2}%"></div></div>
-          <div class="bar-value">${pctNiv2}% (${niv2})</div>
+          <div class="bar-value">${pctNiv2}%</div>
         </div>
         <div class="bar-item">
           <div class="bar-label">⚠️ NIV 2 CC</div>
           <div class="bar-visual"><div class="bar-fill niv2_cc" style="width: ${pctNiv2CC}%"></div></div>
-          <div class="bar-value">${pctNiv2CC}% (${niv2CC})</div>
+          <div class="bar-value">${pctNiv2CC}%</div>
         </div>
         <div class="bar-item">
           <div class="bar-label">NIV 3</div>
           <div class="bar-visual"><div class="bar-fill niv3" style="width: ${pctNiv3}%"></div></div>
-          <div class="bar-value">${pctNiv3}% (${niv3})</div>
+          <div class="bar-value">${pctNiv3}%</div>
         </div>
       </div>
     </div>
@@ -2778,8 +2778,9 @@ function afficherDetailsMachine() {
     document.getElementById('machineDetailContent').innerHTML = '';
     return;
   }
-  
-  const cdActifs = dbData.cd.filter(cd => !cd.cache && cd.numMachine === machineId);
+
+  const cdBase = getFilteredCD({ excludeCached:false });
+  const cdActifs = cdBase.filter(cd => !cd.cache && cd.numMachine === machineId);
   const machine = dbData.machines.find(m => m.id === machineId);
   
   if (!machine || cdActifs.length === 0) return;
@@ -3047,7 +3048,8 @@ function afficherQualite() {
 }
 
 function afficherDetailsRetourArchiModal(niveau) {
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  const cdBase = getFilteredCD({ excludeCached:false });
+  const cdActifs = cdBase.filter(cd => !cd.cache);
   const qualiteKey = niveau === 'NIV 1' ? '1' : (niveau === 'NIV 2' ? '2' : (niveau === 'NIV 2 CC' ? '2_cc' : '3'));
   const cdFiltered = cdActifs.filter(cd => cd.qualite === qualiteKey);
   
@@ -3221,12 +3223,13 @@ function afficherDetailsRetourArchiModal(niveau) {
 }
 
 function afficherDetailsCQModal(cqId) {
-  const cdActifs = dbData.cd.filter(cd => !cd.cache && cd.codeCQ === cqId);
+  const cdBase = getFilteredCD({ excludeCached:false });
+  const cdActifs = cdBase.filter(cd => !cd.cache && cd.codeCQ === cqId);
   const cqCode = dbData.codesCQ.find(c => c.id === cqId);
-  
+
   if (!cqCode) return;
-  
-  const totalCDWithCQ = dbData.cd.filter(cd => !cd.cache && cd.codeCQ).length;
+
+  const totalCDWithCQ = cdBase.filter(cd => !cd.cache && cd.codeCQ).length;
   const pctOfCQ = totalCDWithCQ > 0 ? Math.round((cdActifs.length / totalCDWithCQ) * 100) : 0;
   
   // Machines affectées
