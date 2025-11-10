@@ -1215,6 +1215,13 @@ tbody tr:hover {
   background: var(--color-bg-1);
 }
 
+/* Largeur colonne Date dans l'historique */
+#tableHistorique td:nth-child(1),
+#tableHistorique th:nth-child(1) {
+  min-width: 60px;
+  white-space: nowrap;
+}
+
 /* CD Caché - Visible mais grisé */
 .cd-cache {
   opacity: 0.45;

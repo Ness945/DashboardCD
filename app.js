@@ -12,6 +12,13 @@ function formatDateJJMMJJ(dateISO) {
   return `${day}/${month}/${yy}`;
 }
 
+// Formater date au format court JJ/MM (sans année pour gagner de la place)
+function formatDateCourt(dateISO) {
+  if (!dateISO) return '';
+  const [year, month, day] = dateISO.split('-');
+  return `${day}/${month}`;
+}
+
 function setQuickRange(key){
   const end = new Date();
   const start = new Date(end);
@@ -1162,7 +1169,7 @@ function afficherHistorique(filteredData = null) {
     tagsHtml += `<button class="tag-add-btn" onclick="event.stopPropagation(); ouvrirSelecteurTags('${cd.id}')" title="Ajouter un tag">+ Tag</button>`;
 
     tr.innerHTML = `
-      <td>${formatDateJJMMJJ(cd.date)}</td>
+      <td>${formatDateCourt(cd.date)}</td>
       <td>${cd.heure}</td>
       <td>${cd.typeProd}</td>
       <td>${machine ? machine.numero : 'N/A'}</td>
