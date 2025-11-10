@@ -6,6 +6,7 @@ class MultipleCausesManager {
     this.selectedCodesCQ = [];      // Plusieurs CQ
     this.selectedCodesIncident = []; // Plusieurs incidents
     this.selectedCommentsIncident = {}; // Commentaires par incident
+    this.selectedTempsImpactIncident = {}; // Temps d'impact par incident (en minutes)
   }
 
   // === RESET ===
@@ -14,6 +15,7 @@ class MultipleCausesManager {
     this.selectedCodesCQ = [];
     this.selectedCodesIncident = [];
     this.selectedCommentsIncident = {};
+    this.selectedTempsImpactIncident = {};
   }
 
   // === RETOURS ARCHI MULTIPLES ===
@@ -316,6 +318,11 @@ class MultipleCausesManager {
           </div>
 
           <div class="form-group" style="margin-top: 20px;">
+            <label class="form-label">Temps d'impact global (en minutes)</label>
+            <input type="number" id="incidentGlobalTempsImpact" class="form-control" min="0" placeholder="Durée totale de l'impact en minutes" value="${this.selectedTempsImpactIncident['global'] || ''}">
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
             <label class="form-label">Commentaire global sur les incidents (optionnel)</label>
             <textarea id="incidentGlobalComment" class="form-control" rows="3" placeholder="Décrivez les circonstances des incidents...">${this.selectedCommentsIncident['global'] || ''}</textarea>
           </div>
@@ -368,6 +375,10 @@ class MultipleCausesManager {
     // Sauvegarder le commentaire global
     const comment = document.getElementById('incidentGlobalComment')?.value || '';
     this.selectedCommentsIncident['global'] = comment;
+
+    // Sauvegarder le temps d'impact global
+    const tempsImpact = document.getElementById('incidentGlobalTempsImpact')?.value || '';
+    this.selectedTempsImpactIncident['global'] = tempsImpact ? parseInt(tempsImpact) : 0;
 
     this.updateIncidentDisplay();
     const modal = document.getElementById('modalMultipleIncident');
@@ -478,7 +489,8 @@ class MultipleCausesManager {
       codesQualite: [...this.selectedCodesQualite],
       codesCQ: [...this.selectedCodesCQ],
       codesIncident: [...this.selectedCodesIncident],
-      commentsIncident: { ...this.selectedCommentsIncident }
+      commentsIncident: { ...this.selectedCommentsIncident },
+      tempsImpactIncident: { ...this.selectedTempsImpactIncident }
     };
   }
 }

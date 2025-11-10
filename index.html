@@ -75,6 +75,7 @@
                 <button class="nav-tab" data-tab="stats">Stats</button>
                 <button class="nav-tab" data-tab="manager">Vue Manager</button>
                 <button class="nav-tab" data-tab="machine">Machine</button>
+                <button class="nav-tab" data-tab="analyse">📊 Analyse</button>
                 <button class="nav-tab" data-tab="qualite">Qualité</button>
                 <button class="nav-tab" data-tab="admin">Admin</button>
                 <button class="nav-tab" data-tab="sauvegarde">💾 Sauvegarde</button>
@@ -203,6 +204,35 @@
                         <!-- Rempli par JavaScript -->
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- VUE ANALYSE -->
+        <section id="analyse" class="tab-content">
+            <h2>📊 Analyse des Problèmes</h2>
+
+            <!-- Analyse des Incidents / Pannes -->
+            <div class="section-header">
+                <h3>🔧 Analyse des Pannes et Incidents</h3>
+            </div>
+            <div id="analyseIncidentsContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Analyse des CQ Après CD -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>⚠️ Analyse des CQ Après CD</h3>
+            </div>
+            <div id="analyseCQContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Analyse des Retours Archi -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>📋 Analyse des Retours Archi</h3>
+            </div>
+            <div id="analyseRetourArchiContent">
+                <!-- Rempli par JavaScript -->
             </div>
         </section>
 
@@ -933,7 +963,11 @@
             <select id="codeIncidentSelect" class="form-control">
                 <option value="">-- Sélectionner un code --</option>
             </select>
-            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident"></textarea>
+            <div class="form-group" style="margin-top: var(--space-12);">
+                <label for="tempsImpactIncident">Temps d'impact (en minutes)</label>
+                <input type="number" id="tempsImpactIncident" class="form-control" min="0" placeholder="Durée de l'impact en minutes">
+            </div>
+            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident" style="margin-top: var(--space-12);"></textarea>
             <div class="modal-actions">
                 <button class="btn btn--primary" onclick="validerIncident()">Valider</button>
                 <button class="btn btn--secondary" onclick="fermerModal('modalIncident')">Annuler</button>

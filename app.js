@@ -95,6 +95,7 @@ let tempCodeQualite = null;
 let tempCodeCQ = null;
 let tempCodeIncident = null;
 let tempCommentaireIncident = null;
+let tempTempsImpact = null;
 let currentEditingCD = null;
 
 // Initialisation
@@ -250,6 +251,8 @@ function activerOnglet(tabName) {
     if (typeof afficherMachinesProblematiques === 'function') {
       afficherMachinesProblematiques(cdData);
     }
+  } else if (tabName === 'analyse') {
+    afficherAnalyse();
   } else if (tabName === 'qualite') {
     afficherQualite();
   } else if (tabName === 'sauvegarde') {
@@ -315,9 +318,11 @@ function initBadgeButtons() {
         } else {
           tempCodeIncident = null;
           tempCommentaireIncident = null;
+          tempTempsImpact = null;
           if (typeof multipleCausesManager !== 'undefined') {
             multipleCausesManager.selectedCodesIncident = [];
             multipleCausesManager.selectedCommentsIncident = {};
+            multipleCausesManager.selectedTempsImpactIncident = {};
             multipleCausesManager.updateIncidentDisplay();
           }
         }
@@ -835,23 +840,26 @@ function validerCodeCQ() {
 function ouvrirModalIncident() {
   const select = document.getElementById('codeIncidentSelect');
   select.innerHTML = '<option value="">-- Sélectionner un code --</option>';
-  
+
   dbData.codesIncident.forEach(code => {
     const option = new Option(`${code.code} - ${code.description}`, code.id);
     select.add(option);
   });
-  
+
   document.getElementById('commentaireIncident').value = '';
+  document.getElementById('tempsImpactIncident').value = '';
   ouvrirModal('modalIncident');
 }
 
 function validerIncident() {
   const codeSelect = document.getElementById('codeIncidentSelect');
   const commentaire = document.getElementById('commentaireIncident').value.trim();
-  
+  const tempsImpact = document.getElementById('tempsImpactIncident').value;
+
   if (codeSelect.value) {
     tempCodeIncident = codeSelect.value;
     tempCommentaireIncident = commentaire;
+    tempTempsImpact = tempsImpact ? parseInt(tempsImpact) : 0;
     fermerModal('modalIncident');
   } else {
     alert('Veuillez sélectionner un code incident');
@@ -1025,6 +1033,7 @@ function enregistrerCD() {
     nouveauCD.codeCQ = tempCodeCQ;
     nouveauCD.codeIncident = tempCodeIncident;
     nouveauCD.commentaireIncident = tempCommentaireIncident;
+    nouveauCD.tempsImpact = tempTempsImpact;
   }
   
   if (currentEditingCD) {
@@ -2419,9 +2428,13 @@ function afficherFeedback() {
                 rowClass = ' class="anomalie"';
               }
               
+              // Formatter la date en format court (DD/MM/YY)
+              const dateObj = new Date(cd.date);
+              const dateFormatee = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getFullYear()).slice(-2)}`;
+
               return `
                 <tr${rowClass}${rowStyle} style="${rowStyle ? rowStyle.replace('style="', '').replace('"', '') + ' cursor: pointer;' : 'cursor: pointer;'}" onclick="voirDetailsCD('${cd.id}')">
-                  <td>${cd.date}</td>
+                  <td style="white-space: nowrap; font-size: 13px;">${dateFormatee}</td>
                   <td>${machine ? machine.numero : 'N/A'}</td>
                   <td>${cd.cai}</td>
                   <td>${cd.dimension}</td>
@@ -4059,4 +4072,431 @@ function afficherDetailsCQ(cqId) {
   `;
   
   document.getElementById('qualiteDetailSection').innerHTML = html;
+}
+// === ANALYSE ===
+function afficherAnalyse() {
+  afficherAnalyseIncidents();
+  afficherAnalyseCQ();
+  afficherAnalyseRetourArchi();
+}
+
+function afficherAnalyseIncidents() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdAvecIncident = cdActifs.filter(cd => cd.incident === 'Oui');
+  
+  if (cdAvecIncident.length === 0) {
+    document.getElementById('analyseIncidentsContent').innerHTML = '<div class="empty-state"><p>Aucun incident enregistré</p></div>';
+    return;
+  }
+
+  // Statistiques globales
+  const nbIncidents = cdAvecIncident.length;
+  const tauxIncidents = ((nbIncidents / cdActifs.length) * 100).toFixed(1);
+  
+  // Calcul temps d'impact total
+  let tempsImpactTotal = 0;
+  cdAvecIncident.forEach(cd => {
+    if (cd.tempsImpact) {
+      tempsImpactTotal += cd.tempsImpact;
+    } else if (cd.tempsImpactIncident && cd.tempsImpactIncident.global) {
+      tempsImpactTotal += cd.tempsImpactIncident.global;
+    }
+  });
+  
+  const tempsImpactMoyen = nbIncidents > 0 ? (tempsImpactTotal / nbIncidents).toFixed(1) : 0;
+
+  // Analyse par code incident
+  const incidentsParCode = {};
+  cdAvecIncident.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+      cd.codesIncident.forEach(codeId => {
+        if (!incidentsParCode[codeId]) {
+          incidentsParCode[codeId] = { count: 0, cds: [], tempsImpact: 0 };
+        }
+        incidentsParCode[codeId].count++;
+        incidentsParCode[codeId].cds.push(cd);
+      });
+    } else if (cd.codeIncident) {
+      // Ancien système
+      if (!incidentsParCode[cd.codeIncident]) {
+        incidentsParCode[cd.codeIncident] = { count: 0, cds: [], tempsImpact: 0 };
+      }
+      incidentsParCode[cd.codeIncident].count++;
+      incidentsParCode[cd.codeIncident].cds.push(cd);
+    }
+    
+    // Temps d'impact
+    const impact = cd.tempsImpact || (cd.tempsImpactIncident && cd.tempsImpactIncident.global) || 0;
+    if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+      cd.codesIncident.forEach(codeId => {
+        if (incidentsParCode[codeId]) {
+          incidentsParCode[codeId].tempsImpact += impact;
+        }
+      });
+    } else if (cd.codeIncident && incidentsParCode[cd.codeIncident]) {
+      incidentsParCode[cd.codeIncident].tempsImpact += impact;
+    }
+  });
+
+  // Top incidents
+  const topIncidents = Object.entries(incidentsParCode)
+    .map(([codeId, data]) => {
+      const code = dbData.codesIncident.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        tempsImpact: data.tempsImpact,
+        pct: ((data.count / nbIncidents) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Analyse par machine
+  const incidentsParMachine = {};
+  cdAvecIncident.forEach(cd => {
+    if (!incidentsParMachine[cd.numMachine]) {
+      incidentsParMachine[cd.numMachine] = 0;
+    }
+    incidentsParMachine[cd.numMachine]++;
+  });
+
+  const topMachines = Object.entries(incidentsParMachine)
+    .map(([machineId, count]) => {
+      const machine = dbData.machines.find(m => m.id === machineId);
+      return {
+        machine: machine ? machine.numero : 'N/A',
+        type: machine ? machine.type : 'N/A',
+        count: count
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // HTML
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #D32F2F 0%, #B71C1C 100%); color: white;">
+        <h4 style="color: white;">Total Incidents</h4>
+        <div class="value" style="color: white;">${nbIncidents}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); color: white;">
+        <h4 style="color: white;">Taux d'Incidents</h4>
+        <div class="value" style="color: white;">${tauxIncidents}<span class="unit">%</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%); color: white;">
+        <h4 style="color: white;">Temps Impact Total</h4>
+        <div class="value" style="color: white;">${tempsImpactTotal}<span class="unit">min</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #1976D2 0%, #0D47A1 100%); color: white;">
+        <h4 style="color: white;">Temps Impact Moyen</h4>
+        <div class="value" style="color: white;">${tempsImpactMoyen}<span class="unit">min</span></div>
+      </div>
+    </div>
+
+    <div class="section-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24);">
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top Codes Incidents</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+                <th>Occurrences</th>
+                <th>Impact (min)</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topIncidents.map(inc => `
+                <tr>
+                  <td><strong>${inc.code}</strong></td>
+                  <td>${inc.description}</td>
+                  <td>${inc.count}</td>
+                  <td>${inc.tempsImpact}</td>
+                  <td>${inc.pct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec Incidents</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Machine</th>
+                <th>Type</th>
+                <th>Nb Incidents</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topMachines.map(m => `
+                <tr>
+                  <td><strong>${m.machine}</strong></td>
+                  <td>${m.type}</td>
+                  <td>${m.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseIncidentsContent').innerHTML = html;
+}
+
+function afficherAnalyseCQ() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdAvecCQ = cdActifs.filter(cd => cd.cqApres === 'Oui');
+  
+  if (cdAvecCQ.length === 0) {
+    document.getElementById('analyseCQContent').innerHTML = '<div class="empty-state"><p>Aucun CQ après CD enregistré</p></div>';
+    return;
+  }
+
+  const nbCQ = cdAvecCQ.length;
+  const tauxCQ = ((nbCQ / cdActifs.length) * 100).toFixed(1);
+  
+  // Performance moyenne des CD avec CQ
+  const perfMoyenne = (cdAvecCQ.reduce((sum, cd) => sum + cd.performance, 0) / nbCQ).toFixed(1);
+  
+  // Analyse par code CQ
+  const cqParCode = {};
+  cdAvecCQ.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesCQ && Array.isArray(cd.codesCQ)) {
+      cd.codesCQ.forEach(codeId => {
+        if (!cqParCode[codeId]) {
+          cqParCode[codeId] = { count: 0, cds: [] };
+        }
+        cqParCode[codeId].count++;
+        cqParCode[codeId].cds.push(cd);
+      });
+    } else if (cd.codeCQ) {
+      // Ancien système
+      if (!cqParCode[cd.codeCQ]) {
+        cqParCode[cd.codeCQ] = { count: 0, cds: [] };
+      }
+      cqParCode[cd.codeCQ].count++;
+      cqParCode[cd.codeCQ].cds.push(cd);
+    }
+  });
+
+  const topCQ = Object.entries(cqParCode)
+    .map(([codeId, data]) => {
+      const code = dbData.codesCQ.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        pct: ((data.count / nbCQ) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Analyse par machine
+  const cqParMachine = {};
+  cdAvecCQ.forEach(cd => {
+    if (!cqParMachine[cd.numMachine]) {
+      cqParMachine[cd.numMachine] = 0;
+    }
+    cqParMachine[cd.numMachine]++;
+  });
+
+  const topMachinesCQ = Object.entries(cqParMachine)
+    .map(([machineId, count]) => {
+      const machine = dbData.machines.find(m => m.id === machineId);
+      return {
+        machine: machine ? machine.numero : 'N/A',
+        type: machine ? machine.type : 'N/A',
+        count: count
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #EF6C00 0%, #E65100 100%); color: white;">
+        <h4 style="color: white;">Total CQ</h4>
+        <div class="value" style="color: white;">${nbCQ}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #F57C00 0%, #EF6C00 100%); color: white;">
+        <h4 style="color: white;">Taux de CQ</h4>
+        <div class="value" style="color: white;">${tauxCQ}<span class="unit">%</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%); color: white;">
+        <h4 style="color: white;">Performance Moyenne</h4>
+        <div class="value" style="color: white;">${perfMoyenne}<span class="unit">%</span></div>
+      </div>
+    </div>
+
+    <div class="section-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24);">
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top Codes CQ</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+                <th>Occurrences</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topCQ.map(cq => `
+                <tr>
+                  <td><strong>${cq.code}</strong></td>
+                  <td>${cq.description}</td>
+                  <td>${cq.count}</td>
+                  <td>${cq.pct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec CQ</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Machine</th>
+                <th>Type</th>
+                <th>Nb CQ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topMachinesCQ.map(m => `
+                <tr>
+                  <td><strong>${m.machine}</strong></td>
+                  <td>${m.type}</td>
+                  <td>${m.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseCQContent').innerHTML = html;
+}
+
+function afficherAnalyseRetourArchi() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdNonNiv1 = cdActifs.filter(cd => cd.qualite !== '1');
+  
+  if (cdNonNiv1.length === 0) {
+    document.getElementById('analyseRetourArchiContent').innerHTML = '<div class="empty-state"><p>Tous les CD sont en NIV 1 🎉</p></div>';
+    return;
+  }
+
+  // Répartition par niveau
+  const niv2 = cdActifs.filter(cd => cd.qualite === '2').length;
+  const niv2CC = cdActifs.filter(cd => cd.qualite === '2_cc').length;
+  const niv3 = cdActifs.filter(cd => cd.qualite === '3').length;
+  
+  const tauxNiv2 = ((niv2 / cdActifs.length) * 100).toFixed(1);
+  const tauxNiv2CC = ((niv2CC / cdActifs.length) * 100).toFixed(1);
+  const tauxNiv3 = ((niv3 / cdActifs.length) * 100).toFixed(1);
+
+  // Performance moyenne par niveau
+  const perfNiv2 = niv2 > 0 ? (cdActifs.filter(cd => cd.qualite === '2').reduce((sum, cd) => sum + cd.performance, 0) / niv2).toFixed(1) : 0;
+  const perfNiv2CC = niv2CC > 0 ? (cdActifs.filter(cd => cd.qualite === '2_cc').reduce((sum, cd) => sum + cd.performance, 0) / niv2CC).toFixed(1) : 0;
+  const perfNiv3 = niv3 > 0 ? (cdActifs.filter(cd => cd.qualite === '3').reduce((sum, cd) => sum + cd.performance, 0) / niv3).toFixed(1) : 0;
+
+  // Analyse par code retour archi
+  const codesParType = {};
+  cdNonNiv1.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesQualite && Array.isArray(cd.codesQualite)) {
+      cd.codesQualite.forEach(codeId => {
+        if (!codesParType[codeId]) {
+          codesParType[codeId] = { count: 0, cds: [] };
+        }
+        codesParType[codeId].count++;
+        codesParType[codeId].cds.push(cd);
+      });
+    } else if (cd.codeQualite) {
+      // Ancien système
+      if (!codesParType[cd.codeQualite]) {
+        codesParType[cd.codeQualite] = { count: 0, cds: [] };
+      }
+      codesParType[cd.codeQualite].count++;
+      codesParType[cd.codeQualite].cds.push(cd);
+    }
+  });
+
+  const topCodes = Object.entries(codesParType)
+    .map(([codeId, data]) => {
+      const code = dbData.codesQualite.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        pct: ((data.count / cdNonNiv1.length) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #FBC02D 0%, #F9A825 100%); color: white;">
+        <h4 style="color: white;">NIV 2</h4>
+        <div class="value" style="color: white;">${niv2} <span class="unit">(${tauxNiv2}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv2}%</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #FB8C00 0%, #F57C00 100%); color: white;">
+        <h4 style="color: white;">NIV 2 CC</h4>
+        <div class="value" style="color: white;">${niv2CC} <span class="unit">(${tauxNiv2CC}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv2CC}%</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #E53935 0%, #C62828 100%); color: white;">
+        <h4 style="color: white;">NIV 3</h4>
+        <div class="value" style="color: white;">${niv3} <span class="unit">(${tauxNiv3}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv3}%</div>
+      </div>
+    </div>
+
+    <div class="section-content">
+      <h4 style="margin-bottom: var(--space-16);">Top Codes Retour Archi</h4>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Occurrences</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${topCodes.map(code => `
+              <tr>
+                <td><strong>${code.code}</strong></td>
+                <td>${code.description}</td>
+                <td>${code.count}</td>
+                <td>${code.pct}%</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseRetourArchiContent').innerHTML = html;
 }
