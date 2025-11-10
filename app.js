@@ -271,23 +271,51 @@ function initBadgeButtons() {
       // Gérer les cas spéciaux
       if (hiddenInput.id === 'cdQualite') {
         const niveau = this.getAttribute('data-value');
-        if (niveau === '2' || niveau === '2_grave' || niveau === '3') {
-          ouvrirModalCodeQualite(niveau);
+        if (niveau === '2' || niveau === '2_cc' || niveau === '3') {
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openRetourArchiSelector(niveau);
+          } else {
+            ouvrirModalCodeQualite(niveau);
+          }
         } else {
           tempCodeQualite = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesQualite = [];
+            multipleCausesManager.updateRetourArchiDisplay();
+          }
         }
       } else if (hiddenInput.id === 'cdCQApres') {
         if (this.getAttribute('data-value') === 'Oui') {
-          ouvrirModalCodeCQ();
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openCQSelector();
+          } else {
+            ouvrirModalCodeCQ();
+          }
         } else {
           tempCodeCQ = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesCQ = [];
+            multipleCausesManager.updateCQDisplay();
+          }
         }
       } else if (hiddenInput.id === 'cdIncident') {
         if (this.getAttribute('data-value') === 'Oui') {
-          ouvrirModalIncident();
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openIncidentSelector();
+          } else {
+            ouvrirModalIncident();
+          }
         } else {
           tempCodeIncident = null;
           tempCommentaireIncident = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesIncident = [];
+            multipleCausesManager.selectedCommentsIncident = {};
+            multipleCausesManager.updateIncidentDisplay();
+          }
         }
       }
     });
@@ -530,6 +558,17 @@ function mettreAJourScore(niveauId) {
 }
 
 function getScoreQualite(qualiteNiveau) {
+  // Si NIV 1, score parfait
+  if (qualiteNiveau === '1') {
+    return 100;
+  }
+
+  // Si plusieurs codes sont sélectionnés, prendre le pire score
+  if (typeof multipleCausesManager !== 'undefined' && multipleCausesManager.selectedCodesQualite.length > 0) {
+    return multipleCausesManager.getWorstQualityScore();
+  }
+
+  // Sinon, utiliser le score standard du niveau
   const niveau = dbData.niveauxQualite.find(n => n.niveau === qualiteNiveau);
   return niveau ? niveau.scorePerformance : 100;
 }
@@ -897,19 +936,38 @@ function enregistrerCD() {
     return;
   }
   
-  if (qualite !== '1' && !tempCodeQualite) {
-    alert('Veuillez sélectionner un code Retour Archi pour NIV 2/NIV 3');
-    return;
-  }
-  
-  if (cqApres === 'Oui' && !tempCodeCQ) {
-    alert('Veuillez sélectionner un code CQ');
-    return;
-  }
-  
-  if (incident === 'Oui' && !tempCodeIncident) {
-    alert('Veuillez sélectionner un code incident');
-    return;
+  // Validation avec gestion des causes multiples
+  if (typeof multipleCausesManager !== 'undefined') {
+    if (qualite !== '1' && multipleCausesManager.selectedCodesQualite.length === 0) {
+      alert('Veuillez sélectionner au moins un code Retour Archi pour NIV 2/NIV 3');
+      return;
+    }
+
+    if (cqApres === 'Oui' && multipleCausesManager.selectedCodesCQ.length === 0) {
+      alert('Veuillez sélectionner au moins un code CQ');
+      return;
+    }
+
+    if (incident === 'Oui' && multipleCausesManager.selectedCodesIncident.length === 0) {
+      alert('Veuillez sélectionner au moins un code incident');
+      return;
+    }
+  } else {
+    // Fallback pour l'ancien système
+    if (qualite !== '1' && !tempCodeQualite) {
+      alert('Veuillez sélectionner un code Retour Archi pour NIV 2/NIV 3');
+      return;
+    }
+
+    if (cqApres === 'Oui' && !tempCodeCQ) {
+      alert('Veuillez sélectionner un code CQ');
+      return;
+    }
+
+    if (incident === 'Oui' && !tempCodeIncident) {
+      alert('Veuillez sélectionner un code incident');
+      return;
+    }
   }
   
   // Calculs
@@ -925,7 +983,7 @@ function enregistrerCD() {
     selectedTags.push(tagElement.dataset.tagId);
   });
 
-  // Créer l'objet CD
+  // Créer l'objet CD avec gestion des causes multiples
   const nouveauCD = {
     id: currentEditingCD || 'cd_' + Date.now(),
     date: date,
@@ -941,12 +999,8 @@ function enregistrerCD() {
     d1Reel: d1Reel,
     d1Net: d1Net,
     qualite: qualite,
-    codeQualite: tempCodeQualite,
     cqApres: cqApres,
-    codeCQ: tempCodeCQ,
     incident: incident,
-    codeIncident: tempCodeIncident,
-    commentaireIncident: tempCommentaireIncident,
     commentaire: commentaire,
     tempsStandard: tempsStandard,
     efficacite: Math.round(efficacite * 100) / 100,
@@ -956,6 +1010,18 @@ function enregistrerCD() {
     cache: false,
     tags: selectedTags
   };
+
+  // Ajouter les données des causes (multiples ou uniques)
+  if (typeof multipleCausesManager !== 'undefined') {
+    const causesData = multipleCausesManager.getDataForSave();
+    Object.assign(nouveauCD, causesData);
+  } else {
+    // Fallback pour l'ancien système
+    nouveauCD.codeQualite = tempCodeQualite;
+    nouveauCD.codeCQ = tempCodeCQ;
+    nouveauCD.codeIncident = tempCodeIncident;
+    nouveauCD.commentaireIncident = tempCommentaireIncident;
+  }
   
   if (currentEditingCD) {
     // Mode édition
@@ -1003,6 +1069,11 @@ function reinitialiserFormCD() {
   tempCodeIncident = null;
   tempCommentaireIncident = null;
   currentEditingCD = null;
+
+  // Réinitialiser le gestionnaire de causes multiples
+  if (typeof multipleCausesManager !== 'undefined') {
+    multipleCausesManager.reset();
+  }
 }
 
 // Afficher les tags dans le formulaire de saisie CD
@@ -1092,10 +1163,25 @@ function afficherHistorique(filteredData = null) {
     const incBadgeClass = cd.incident === 'Oui' ? 'status--warning' : 'status--info';
     const incLabel = cd.incident === 'Oui' ? 'OUI' : 'NON';
 
-    // Badge rouge pour CQ Après CD
+    // Badge rouge pour CQ Après CD - support multiple codes
     let cqContent = '-';
     if (cd.cqApres === 'Oui') {
-      if (cd.codeCQ) {
+      // Support pour causes multiples
+      if (cd.codesCQ && Array.isArray(cd.codesCQ) && cd.codesCQ.length > 0) {
+        const codesList = cd.codesCQ.map(id => {
+          const code = dbData.codesCQ.find(c => c.id === id);
+          return code ? `${code.code} - ${code.description}` : '?';
+        }).join('<br>');
+
+        cqContent = `
+          <div class="multiple-codes-tooltip">
+            <span class="status status--error" style="cursor: pointer;">CQ (${cd.codesCQ.length})</span>
+            <span class="tooltip-content">${codesList}</span>
+          </div>
+        `;
+      }
+      // Fallback pour l'ancien format (single code)
+      else if (cd.codeCQ) {
         const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
         if (codeCQ) {
           cqContent = `
@@ -1116,20 +1202,37 @@ function afficherHistorique(filteredData = null) {
       }
     }
     
-    // Tooltip pour Retour Archi avec info Niv 2/3
+    // Tooltip pour Retour Archi avec info Niv 2/3 - support multiple codes
     let qualiteContent = `<span class="status ${qualiteClass}">${qualiteLabel}</span>`;
-    if (cd.qualite !== '1' && cd.codeQualite) {
-      const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
-      if (codeQualite) {
+    if (cd.qualite !== '1') {
+      // Support pour causes multiples
+      if (cd.codesQualite && Array.isArray(cd.codesQualite) && cd.codesQualite.length > 0) {
+        const codesList = cd.codesQualite.map(id => {
+          const code = dbData.codesQualite.find(c => c.id === id);
+          return code ? `${code.code} - ${code.description}` : '?';
+        }).join('<br>');
+
         qualiteContent = `
-          <div class="tooltip">
-            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
-            <span class="tooltiptext">
-              <strong>Code Retour Archi:</strong><br>
-              ${codeQualite.code} - ${codeQualite.description}
-            </span>
+          <div class="multiple-codes-tooltip">
+            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel} (${cd.codesQualite.length})</span>
+            <span class="tooltip-content">${codesList}</span>
           </div>
         `;
+      }
+      // Fallback pour l'ancien format (single code)
+      else if (cd.codeQualite) {
+        const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
+        if (codeQualite) {
+          qualiteContent = `
+            <div class="tooltip">
+              <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
+              <span class="tooltiptext">
+                <strong>Code Retour Archi:</strong><br>
+                ${codeQualite.code} - ${codeQualite.description}
+              </span>
+            </div>
+          `;
+        }
       }
     }
     
@@ -1444,6 +1547,11 @@ function editerCD(id) {
     tempCodeCQ = cd.codeCQ;
     tempCodeIncident = cd.codeIncident;
     tempCommentaireIncident = cd.commentaireIncident;
+
+    // Charger les causes multiples si disponible
+    if (typeof multipleCausesManager !== 'undefined') {
+      multipleCausesManager.loadFromCD(cd);
+    }
 
     // Désactiver tous les badges d'abord
     document.querySelectorAll('.badge-btn').forEach(btn => {

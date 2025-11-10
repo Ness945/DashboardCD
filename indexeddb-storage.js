@@ -102,6 +102,9 @@ class IndexedDBStorage {
         if (result && result.data) {
           Object.assign(dbData, result.data);
 
+          // Migrer les anciennes données vers le nouveau format (causes multiples)
+          this.migrateOldDataFormat();
+
           // S'assurer que les opérateurs protégés sont présents
           const operateursProtegés = [
             { id: 'op_harel_protected', nom: 'Harel', dateAjout: '2025-01-01', protected: true },
@@ -138,6 +141,54 @@ class IndexedDBStorage {
     });
   }
 
+  // === MIGRATION FORMAT DONNÉES (causes multiples) ===
+  migrateOldDataFormat() {
+    let migrationCount = 0;
+
+    if (dbData.cd && Array.isArray(dbData.cd)) {
+      dbData.cd.forEach(cd => {
+        let modified = false;
+
+        // Convertir codeQualite → codesQualite[]
+        if (cd.codeQualite && !cd.codesQualite) {
+          cd.codesQualite = [cd.codeQualite];
+          delete cd.codeQualite;
+          modified = true;
+        }
+
+        // Convertir codeCQ → codesCQ[]
+        if (cd.codeCQ && !cd.codesCQ) {
+          cd.codesCQ = [cd.codeCQ];
+          delete cd.codeCQ;
+          modified = true;
+        }
+
+        // Convertir codeIncident → codesIncident[]
+        if (cd.codeIncident && !cd.codesIncident) {
+          cd.codesIncident = [cd.codeIncident];
+          delete cd.codeIncident;
+          modified = true;
+        }
+
+        // Convertir commentaireIncident → commentsIncident{}
+        if (cd.commentaireIncident && !cd.commentsIncident) {
+          cd.commentsIncident = { global: cd.commentaireIncident };
+          delete cd.commentaireIncident;
+          modified = true;
+        }
+
+        if (modified) {
+          migrationCount++;
+        }
+      });
+    }
+
+    if (migrationCount > 0) {
+      console.log(`🔄 Migration de ${migrationCount} CD vers le nouveau format (causes multiples)`);
+      this.markAsModified();
+    }
+  }
+
   // === MIGRATION DEPUIS LOCALSTORAGE ===
   async migrateFromLocalStorage() {
     console.log('🔄 Tentative de migration depuis localStorage...');
@@ -152,6 +203,9 @@ class IndexedDBStorage {
       const parsed = JSON.parse(saved);
       if (parsed.data) {
         Object.assign(dbData, parsed.data);
+
+        // Migrer les anciennes données vers le nouveau format
+        this.migrateOldDataFormat();
 
         // Sauvegarder dans IndexedDB
         await this.save(false);
