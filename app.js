@@ -561,8 +561,8 @@ function mettreAJourScore(niveauId) {
     if (document.getElementById('feedbackOperateur').value) {
       afficherFeedback();
     }
-    
-    alert(`Score du ${niveau.label} mis à jour à ${newScore} pts. Tous les calculs ont été recalculés.`);
+
+    showToast(`✅ Score du ${niveau.label} mis à jour à ${newScore} pts. Tous les calculs ont été recalculés.`, 'success');
   }
 }
 
@@ -2078,11 +2078,6 @@ function toggleCacheCD(cdId) {
   // Rafraîchir toutes les vues
   afficherHistorique();
   afficherFeedback();
-}
-
-function toggleShowHiddenCD() {
-  // Fonction conservée pour compatibilité mais ne fait plus rien
-  // Les CD cachés sont toujours affichés (grisés)
 }
 
 function afficherFeedback() {

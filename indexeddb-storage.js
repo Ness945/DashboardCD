@@ -23,7 +23,6 @@ class IndexedDBStorage {
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialisé');
         resolve(this.db);
       };
 
@@ -34,7 +33,6 @@ class IndexedDBStorage {
         if (!db.objectStoreNames.contains(this.storeName)) {
           const objectStore = db.createObjectStore(this.storeName, { keyPath: 'id' });
           objectStore.createIndex('timestamp', 'timestamp', { unique: false });
-          console.log('✅ Object store créé');
         }
       };
     });
@@ -73,7 +71,6 @@ class IndexedDBStorage {
           showSuccess('Données sauvegardées', 'Sauvegarde IndexedDB réussie');
         }
 
-        console.log('💾 Sauvegarde IndexedDB réussie');
         resolve(true);
       };
 
@@ -124,10 +121,8 @@ class IndexedDBStorage {
 
           const date = new Date(result.timestamp);
           showSuccess('Données restaurées', `Dernière sauvegarde: ${date.toLocaleString('fr-FR')}`);
-          console.log('✅ Données chargées depuis IndexedDB');
           resolve(true);
         } else {
-          console.log('ℹ️ Aucune donnée trouvée dans IndexedDB');
           // Tenter de charger depuis localStorage comme fallback
           this.migrateFromLocalStorage();
           resolve(false);
@@ -184,19 +179,16 @@ class IndexedDBStorage {
     }
 
     if (migrationCount > 0) {
-      console.log(`🔄 Migration de ${migrationCount} CD vers le nouveau format (causes multiples)`);
       this.markAsModified();
     }
   }
 
   // === MIGRATION DEPUIS LOCALSTORAGE ===
   async migrateFromLocalStorage() {
-    console.log('🔄 Tentative de migration depuis localStorage...');
 
     try {
       const saved = localStorage.getItem('michelin_cd_data');
       if (!saved) {
-        console.log('ℹ️ Aucune donnée localStorage à migrer');
         return false;
       }
 
@@ -211,7 +203,6 @@ class IndexedDBStorage {
         await this.save(false);
 
         showSuccess('Migration réussie', 'Données migrées de localStorage vers IndexedDB');
-        console.log('✅ Migration localStorage → IndexedDB réussie');
 
         // Optionnel: nettoyer localStorage
         // localStorage.removeItem('michelin_cd_data');
@@ -236,14 +227,12 @@ class IndexedDBStorage {
         showToast('💾 Sauvegarde automatique', 'info');
       }
     }, intervalMs);
-    console.log('✅ Auto-save IndexedDB démarré (toutes les 30s)');
   }
 
   stopAutoSave() {
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
-      console.log('🛑 Auto-save IndexedDB arrêté');
     }
   }
 
@@ -367,7 +356,6 @@ class IndexedDBStorage {
 
       request.onsuccess = () => {
         showSuccess('Données supprimées', 'IndexedDB nettoyée');
-        console.log('✅ IndexedDB nettoyée');
         resolve(true);
       };
 
@@ -389,7 +377,6 @@ window.addEventListener('load', async () => {
     await indexedDBStorage.init();
     await indexedDBStorage.load();
     indexedDBStorage.startAutoSave(30000);
-    console.log('✅ IndexedDB Storage initialisé');
   } catch (error) {
     console.error('❌ Erreur initialisation IndexedDB:', error);
     showError('Erreur IndexedDB', 'Utilisation de localStorage en fallback');

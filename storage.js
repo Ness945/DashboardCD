@@ -16,14 +16,12 @@ class StorageManager {
         showToast('💾 Sauvegarde automatique', 'info');
       }
     }, intervalMs);
-    console.log('✅ Auto-save démarré (toutes les 30s)');
   }
 
   stopAutoSave() {
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
-      console.log('🛑 Auto-save arrêté');
     }
   }
 
@@ -73,16 +71,10 @@ class StorageManager {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (!saved) {
-        console.log('ℹ️ Aucune donnée sauvegardée trouvée');
         return false;
       }
 
       const parsed = JSON.parse(saved);
-
-      // Vérifier la version
-      if (parsed.version) {
-        console.log(`📦 Chargement des données v${parsed.version}`);
-      }
 
       // Charger les données
       if (parsed.data) {
@@ -315,8 +307,6 @@ window.addEventListener('load', () => {
 
     // Démarrer l'auto-save (toutes les 30 secondes)
     storageManager.startAutoSave(30000);
-
-    console.log('✅ Storage Manager initialisé');
   }, 100);
 
   // Sauvegarder avant de quitter la page

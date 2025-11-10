@@ -294,21 +294,5 @@ function supprimerMachineWithUndo(id) {
 // Créer les boutons Undo/Redo dans l'interface (DÉSACTIVÉ)
 document.addEventListener('DOMContentLoaded', () => {
   // Boutons Undo/Redo masqués par demande utilisateur
-  // const navContainer = document.querySelector('.nav-container');
-  // if (navContainer && !document.getElementById('undoRedoButtons')) {
-  //   const undoRedoDiv = document.createElement('div');
-  //   undoRedoDiv.id = 'undoRedoButtons';
-  //   undoRedoDiv.style.cssText = 'display: flex; gap: var(--space-8); margin-top: var(--space-12);';
-  //   undoRedoDiv.innerHTML = `
-  //     <button id="undoButton" class="btn btn--secondary btn--small" onclick="undoManager.undo()" disabled title="Annuler (Ctrl+Z)">
-  //       ↶ Annuler
-  //     </button>
-  //     <button id="redoButton" class="btn btn--secondary btn--small" onclick="undoManager.redo()" disabled title="Refaire (Ctrl+Shift+Z)">
-  //       ↷ Refaire
-  //     </button>
-  //   `;
-  //   navContainer.appendChild(undoRedoDiv);
-  // }
-
-  console.log('✅ Undo/Redo Manager initialisé (boutons masqués)');
+  // Undo/Redo Manager initialisé
 });

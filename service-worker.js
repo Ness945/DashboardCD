@@ -40,12 +40,10 @@ const cdnUrls = [
 
 // === INSTALLATION ===
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installation...');
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Mise en cache des fichiers');
 
         // Mettre en cache les fichiers locaux
         cache.addAll(urlsToCache).catch((err) => {
@@ -66,7 +64,6 @@ self.addEventListener('install', (event) => {
         return cache;
       })
       .then(() => {
-        console.log('[Service Worker] Installation terminée');
         // Forcer l'activation immédiate
         return self.skipWaiting();
       })
@@ -75,7 +72,6 @@ self.addEventListener('install', (event) => {
 
 // === ACTIVATION ===
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activation...');
 
   event.waitUntil(
     caches.keys()
@@ -84,14 +80,12 @@ self.addEventListener('activate', (event) => {
           cacheNames.map((cacheName) => {
             // Supprimer les anciens caches
             if (cacheName !== CACHE_NAME) {
-              console.log('[Service Worker] Suppression ancien cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('[Service Worker] Activation terminée');
         // Prendre le contrôle immédiatement
         return self.clients.claim();
       })
@@ -141,7 +135,6 @@ async function cacheFirst(request) {
 
   if (cachedResponse) {
     // Retourner du cache immédiatement
-    console.log('[Service Worker] Cache hit:', request.url);
 
     // Mettre à jour en arrière-plan
     updateCache(request);
@@ -150,7 +143,6 @@ async function cacheFirst(request) {
   }
 
   // Si pas en cache, récupérer du réseau
-  console.log('[Service Worker] Cache miss, fetching:', request.url);
   return fetchAndCache(request);
 }
 
@@ -168,7 +160,6 @@ async function networkFirst(request) {
     return networkResponse;
   } catch (error) {
     // En cas d'erreur réseau, essayer le cache
-    console.log('[Service Worker] Network failed, trying cache:', request.url);
     const cachedResponse = await caches.match(request);
 
     if (cachedResponse) {
@@ -211,7 +202,6 @@ async function updateCache(request) {
     if (response && response.status === 200) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response);
-      console.log('[Service Worker] Cache updated:', request.url);
     }
   } catch (error) {
     // Ignorer les erreurs de mise à jour silencieuse
@@ -263,7 +253,5 @@ self.addEventListener('sync', (event) => {
 
 async function syncCDData() {
   // Placeholder pour sync future si serveur backend
-  console.log('[Service Worker] Sync CD data...');
 }
 
-console.log('[Service Worker] Chargé - Version:', CACHE_VERSION);

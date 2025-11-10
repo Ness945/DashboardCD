@@ -319,5 +319,3 @@ window.updateBreadcrumbs = updateBreadcrumbs;
 window.updateFilterBadge = updateFilterBadge;
 window.createProgressRing = createProgressRing;
 window.showConfetti = showConfetti;
-
-console.log('✨ UI Enhancements loaded');

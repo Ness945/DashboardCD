@@ -208,5 +208,4 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  console.log('✅ Insights UI initialisé');
 });

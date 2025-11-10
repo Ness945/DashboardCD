@@ -390,5 +390,3 @@ class AnalyticsEngine {
 
 // Instance globale
 const analyticsEngine = new AnalyticsEngine();
-
-console.log('✅ Analytics Engine initialisé');
