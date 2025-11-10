@@ -1,7 +1,7 @@
 // === INSIGHTS UI MODULE ===
 
 function afficherInsights() {
-  const cdData = getFilteredCD({ excludeCached: true });
+  const cdData = getFilteredCDForInsights({ excludeCached: true });
 
   if (cdData.length === 0) {
     const recommendationsContent = document.getElementById('recommendationsContent');

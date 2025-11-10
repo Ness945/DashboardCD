@@ -113,6 +113,24 @@
         <!-- VUE MACHINE -->
         <section id="machine" class="tab-content">
             <h2>Performance des Machines</h2>
+
+            <!-- Filtre de date local pour Machine -->
+            <div class="gdf-container" style="margin-bottom: var(--space-24);">
+                <div class="gdf-quick">
+                    <button class="gdf-badge" data-range="7d">7 jours</button>
+                    <button class="gdf-badge" data-range="1m">1 mois</button>
+                    <button class="gdf-badge" data-range="6m">6 mois</button>
+                    <button class="gdf-badge" data-range="1y">1 an</button>
+                    <button class="gdf-badge" data-range="all">Tout</button>
+                </div>
+                <div class="gdf-range">
+                    <input type="date" id="machineFilterStart" class="form-control" />
+                    <span class="gdf-sep">→</span>
+                    <input type="date" id="machineFilterEnd" class="form-control" />
+                    <button class="btn btn--primary btn--small" id="machineFilterApply">Appliquer</button>
+                </div>
+            </div>
+
             <div id="machineContent">
                 <!-- Rempli par JavaScript -->
             </div>
@@ -129,6 +147,23 @@
         <!-- VUE INSIGHTS -->
         <section id="insights" class="tab-content">
             <h2>📊 Insights & Analytics Avancés</h2>
+
+            <!-- Filtre de date local pour Insights -->
+            <div class="gdf-container" style="margin-bottom: var(--space-24);">
+                <div class="gdf-quick">
+                    <button class="gdf-badge" data-range="7d">7 jours</button>
+                    <button class="gdf-badge" data-range="1m">1 mois</button>
+                    <button class="gdf-badge" data-range="6m">6 mois</button>
+                    <button class="gdf-badge" data-range="1y">1 an</button>
+                    <button class="gdf-badge" data-range="all">Tout</button>
+                </div>
+                <div class="gdf-range">
+                    <input type="date" id="insightsFilterStart" class="form-control" />
+                    <span class="gdf-sep">→</span>
+                    <input type="date" id="insightsFilterEnd" class="form-control" />
+                    <button class="btn btn--primary btn--small" id="insightsFilterApply">Appliquer</button>
+                </div>
+            </div>
 
             <!-- Recommandations -->
             <div class="section-header" style="margin-top: var(--space-32);">

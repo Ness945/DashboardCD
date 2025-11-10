@@ -1,5 +1,7 @@
 // === Filtre date global ===
 let globalDateFilter = { mode: 'all', start: null, end: null, badge: null };
+let machineLocalFilter = { mode: 'all', start: null, end: null };
+let insightsLocalFilter = { mode: 'all', start: null, end: null };
 
 function parseISO(d){ return d ? new Date(d + 'T00:00:00') : null; }
 function fmtISO(d){ return d.toISOString().slice(0,10); }
@@ -55,6 +57,53 @@ function getFilteredCD(opts = { excludeCached:false }){
   return source;
 }
 
+// === Filtres locaux pour Machine et Insights ===
+function getFilteredCDForMachine(opts = { excludeCached:false }){
+  let source = Array.isArray(dbData?.cd) ? dbData.cd.slice() : [];
+  if (opts.excludeCached) source = source.filter(c => !c.cache);
+  if (machineLocalFilter.mode !== 'all') {
+    source = source.filter(c => inRange(c.date, machineLocalFilter.start, machineLocalFilter.end));
+  }
+  return source;
+}
+
+function getFilteredCDForInsights(opts = { excludeCached:false }){
+  let source = Array.isArray(dbData?.cd) ? dbData.cd.slice() : [];
+  if (opts.excludeCached) source = source.filter(c => !c.cache);
+  if (insightsLocalFilter.mode !== 'all') {
+    source = source.filter(c => inRange(c.date, insightsLocalFilter.start, insightsLocalFilter.end));
+  }
+  return source;
+}
+
+function setMachineQuickRange(key){
+  const end = new Date();
+  const start = new Date(end);
+  if(key==='all'){ machineLocalFilter = { mode:'all', start:null, end:null }; }
+  else {
+    if(key==='7d'){ start.setDate(end.getDate()-7); }
+    else if(key==='1m'){ start.setMonth(end.getMonth()-1); }
+    else if(key==='6m'){ start.setMonth(end.getMonth()-6); }
+    else if(key==='1y'){ start.setFullYear(end.getFullYear()-1); }
+    machineLocalFilter = { mode:'quick', start: fmtISO(start), end: fmtISO(end) };
+  }
+  afficherMachinePerformance();
+}
+
+function setInsightsQuickRange(key){
+  const end = new Date();
+  const start = new Date(end);
+  if(key==='all'){ insightsLocalFilter = { mode:'all', start:null, end:null }; }
+  else {
+    if(key==='7d'){ start.setDate(end.getDate()-7); }
+    else if(key==='1m'){ start.setMonth(end.getMonth()-1); }
+    else if(key==='6m'){ start.setMonth(end.getMonth()-6); }
+    else if(key==='1y'){ start.setFullYear(end.getFullYear()-1); }
+    insightsLocalFilter = { mode:'quick', start: fmtISO(start), end: fmtISO(end) };
+  }
+  afficherInsights();
+}
+
 function rafraichirVuesApresFiltre(){
   try { afficherAccueil && afficherAccueil(); } catch(e){}
   try { afficherStats && afficherStats(); } catch(e){}
@@ -71,9 +120,8 @@ function rafraichirVuesApresFiltre(){
     }
   } catch(e){}
   try { afficherVueManager && afficherVueManager(); } catch(e){}
-  try { afficherMachinePerformance && afficherMachinePerformance(); } catch(e){}
   try { afficherQualite && afficherQualite(); } catch(e){}
-  try { afficherInsights && afficherInsights(); } catch(e){}
+  // Machine et Insights ont leurs propres filtres locaux
 }
 
 // Base de données en mémoire
@@ -167,6 +215,52 @@ document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.gdf-badge').forEach(x=>x.classList.remove('active'));
       rafraichirVuesApresFiltre();
     });
+  }
+
+  // === Filtres locaux pour Machine ===
+  const machineSection = document.getElementById('machine');
+  if(machineSection){
+    const machineButtons = machineSection.querySelectorAll('.gdf-badge');
+    machineButtons.forEach(b=>{
+      b.addEventListener('click', ()=>{
+        machineButtons.forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        setMachineQuickRange(b.dataset.range);
+      });
+    });
+    const machineApply = document.getElementById('machineFilterApply');
+    if(machineApply){
+      machineApply.addEventListener('click', ()=>{
+        const s = document.getElementById('machineFilterStart')?.value || null;
+        const e = document.getElementById('machineFilterEnd')?.value || null;
+        machineLocalFilter = { mode:'range', start:s, end:e };
+        machineButtons.forEach(x=>x.classList.remove('active'));
+        afficherMachinePerformance();
+      });
+    }
+  }
+
+  // === Filtres locaux pour Insights ===
+  const insightsSection = document.getElementById('insights');
+  if(insightsSection){
+    const insightsButtons = insightsSection.querySelectorAll('.gdf-badge');
+    insightsButtons.forEach(b=>{
+      b.addEventListener('click', ()=>{
+        insightsButtons.forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        setInsightsQuickRange(b.dataset.range);
+      });
+    });
+    const insightsApply = document.getElementById('insightsFilterApply');
+    if(insightsApply){
+      insightsApply.addEventListener('click', ()=>{
+        const s = document.getElementById('insightsFilterStart')?.value || null;
+        const e = document.getElementById('insightsFilterEnd')?.value || null;
+        insightsLocalFilter = { mode:'range', start:s, end:e };
+        insightsButtons.forEach(x=>x.classList.remove('active'));
+        afficherInsights();
+      });
+    }
   }
 })();
 });
@@ -2675,8 +2769,8 @@ function genererClassementOperateurs(titre, opArray, metricKey, unit) {
 
 // === MACHINE TAB ===
 function afficherMachinePerformance() {
-  // patched afficherMachinePerformance: utilize globally filtered list
-  const cdBase = getFilteredCD({ excludeCached:false });
+  // Use local filter for Machine tab
+  const cdBase = getFilteredCDForMachine({ excludeCached:false });
 
   const cdActifs = cdBase.filter(cd => !cd.cache);
   
@@ -2779,7 +2873,7 @@ function afficherDetailsMachine() {
     return;
   }
 
-  const cdBase = getFilteredCD({ excludeCached:false });
+  const cdBase = getFilteredCDForMachine({ excludeCached:false });
   const cdActifs = cdBase.filter(cd => !cd.cache && cd.numMachine === machineId);
   const machine = dbData.machines.find(m => m.id === machineId);
   
