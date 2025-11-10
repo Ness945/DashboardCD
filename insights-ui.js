@@ -120,6 +120,8 @@ function afficherMachinesProblematiques(cdData) {
 
   problematicMachines.forEach(machine => {
     const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => voirDetailsMachine(machine.machineId);
     tr.innerHTML = `
       <td><strong>${machine.machine}</strong></td>
       <td>${machine.type}</td>

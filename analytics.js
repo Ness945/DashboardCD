@@ -166,6 +166,7 @@ class AnalyticsEngine {
         const avgPerf = stats.performances.reduce((a, b) => a + b, 0) / stats.count;
 
         return {
+          machineId: machineId,
           machine: machine?.numero || 'N/A',
           type: machine?.type || 'N/A',
           avgPerformance: avgPerf.toFixed(2),

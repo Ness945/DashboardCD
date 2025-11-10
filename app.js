@@ -1573,11 +1573,191 @@ function voirDetailsCD(id) {
   
   document.getElementById('detailsCDContainer').innerHTML = content;
   ouvrirModal('modalDetailsCD');
-  
+
   // Fermeture au clic sur l'overlay
   document.getElementById('modalDetailsCD').onclick = function(e) {
     if (e.target === this) {
       fermerModal('modalDetailsCD');
+    }
+  };
+}
+
+function voirDetailsMachine(machineId) {
+  const machine = dbData.machines.find(m => m.id === machineId);
+  if (!machine) return;
+
+  const cdActifs = dbData.cd.filter(cd => !cd.cache && cd.numMachine === machineId);
+
+  if (cdActifs.length === 0) {
+    alert('Aucun CD trouvé pour cette machine');
+    return;
+  }
+
+  // Calculs
+  const nbCD = cdActifs.length;
+  const perfMoyenne = (cdActifs.reduce((sum, cd) => sum + cd.performance, 0) / nbCD).toFixed(1);
+  const efficaciteMoyenne = (cdActifs.reduce((sum, cd) => sum + cd.efficacite, 0) / nbCD).toFixed(1);
+  const d1Moyen = (cdActifs.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD).toFixed(1);
+  const d1NetMoyen = (cdActifs.reduce((sum, cd) => sum + cd.d1Net, 0) / nbCD).toFixed(1);
+
+  const niv1 = cdActifs.filter(cd => cd.qualite === '1').length;
+  const niv2 = cdActifs.filter(cd => cd.qualite === '2').length;
+  const niv2CC = cdActifs.filter(cd => cd.qualite === '2_cc').length;
+  const niv3 = cdActifs.filter(cd => cd.qualite === '3').length;
+
+  const pctNiv1 = Math.round((niv1 / nbCD) * 100);
+  const pctNiv2 = Math.round((niv2 / nbCD) * 100);
+  const pctNiv2CC = Math.round((niv2CC / nbCD) * 100);
+  const pctNiv3 = Math.round((niv3 / nbCD) * 100);
+
+  const anomalies = cdActifs.filter(cd => cd.anomalie).length;
+  const incidents = cdActifs.filter(cd => cd.incident === 'Oui').length;
+  const cqOui = cdActifs.filter(cd => cd.cqApres === 'Oui').length;
+
+  // Trouver les CD les plus récents
+  const cdRecents = [...cdActifs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+  const content = `
+    <div class="modal-header" style="background: linear-gradient(135deg, #27509B 0%, #1a3a6e 100%); color: white; padding: var(--space-24); border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+      <div class="modal-details-title-section">
+        <div class="modal-details-title">
+          <h3 style="color: white; margin: 0 0 var(--space-8) 0; font-size: var(--font-size-2xl);">Détails Machine ${machine.numero}</h3>
+          <div style="color: rgba(255,255,255,0.9); font-size: var(--font-size-lg);">${machine.type}</div>
+        </div>
+        <button class="modal-close-btn" onclick="fermerModal('modalDetailsMachine')" style="color: white; opacity: 0.9;">&times;</button>
+      </div>
+    </div>
+
+    <div class="modal-content-scrollable">
+      <!-- KPIs Machine -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+        <div style="background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Performance</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${perfMoyenne}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #1976D2 0%, #0D47A1 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Efficacité</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${efficaciteMoyenne}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">NIV 1</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${pctNiv1}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Total CD</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${nbCD}</div>
+        </div>
+      </div>
+
+      <!-- Statistiques détaillées -->
+      <div class="modal-codes-section">
+        <h4>📊 Statistiques Globales</h4>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-12);">
+          <div class="modal-code-item">
+            <div class="modal-code-label">D1 Moyen</div>
+            <div class="modal-code-value">${d1Moyen}h</div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">D1 Net Moyen</div>
+            <div class="modal-code-value">${d1NetMoyen}h</div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Anomalies</div>
+            <div class="modal-code-value"><span class="status ${anomalies > 0 ? 'status--error' : 'status--success'}">${anomalies}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Incidents</div>
+            <div class="modal-code-value"><span class="status ${incidents > 0 ? 'status--warning' : 'status--info'}">${incidents}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">CQ Après CD</div>
+            <div class="modal-code-value"><span class="status ${cqOui > 0 ? 'status--error' : 'status--success'}">${cqOui}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Taux anomalies</div>
+            <div class="modal-code-value">${Math.round((anomalies / nbCD) * 100)}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Répartition Qualité -->
+      <div class="modal-codes-section">
+        <h4>🎯 Répartition Qualité</h4>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-8);">
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #2E7D32;">${niv1}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 1</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv1}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #F57C00;">${niv2}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 2</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv2}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #C62828;">${niv2CC}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 2 CC</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv2CC}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #8B0000;">${niv3}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 3</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv3}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CD Récents -->
+      <div class="modal-codes-section">
+        <h4>📋 Derniers CD (${cdRecents.length})</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>CAI</th>
+                <th>Opérateurs</th>
+                <th>Performance</th>
+                <th>Qualité</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cdRecents.map(cd => {
+                const op1 = dbData.operateurs.find(o => o.id === cd.conf1);
+                const op2 = dbData.operateurs.find(o => o.id === cd.conf2);
+                let qualiteLabel, qualiteClass;
+                if (cd.qualite === '1') { qualiteClass = 'status--success'; qualiteLabel = 'NIV 1'; }
+                else if (cd.qualite === '2') { qualiteClass = 'status--warning'; qualiteLabel = 'NIV 2'; }
+                else if (cd.qualite === '2_cc') { qualiteClass = 'status--error'; qualiteLabel = 'NIV 2 CC'; }
+                else { qualiteClass = 'status--error'; qualiteLabel = 'NIV 3'; }
+                return `
+                  <tr style="cursor: pointer;" onclick="fermerModal('modalDetailsMachine'); voirDetailsCD('${cd.id}')">
+                    <td>${new Date(cd.date).toLocaleDateString('fr-FR')}</td>
+                    <td>${cd.cai}</td>
+                    <td>${op1?.nom || '?'} / ${op2?.nom || '?'}</td>
+                    <td>${cd.performance.toFixed(1)}%</td>
+                    <td><span class="status ${qualiteClass}">${qualiteLabel}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn--secondary" onclick="fermerModal('modalDetailsMachine')">Fermer</button>
+    </div>
+  `;
+
+  document.getElementById('detailsMachineContainer').innerHTML = content;
+  ouvrirModal('modalDetailsMachine');
+
+  // Fermeture au clic sur l'overlay
+  document.getElementById('modalDetailsMachine').onclick = function(e) {
+    if (e.target === this) {
+      fermerModal('modalDetailsMachine');
     }
   };
 }
@@ -1875,19 +2055,25 @@ function afficherBestTeams() {
 }
 
 // === FEEDBACK ===
-function calculerPNCPNS() {
+function calculerPNCPNS(opId) {
+  if (!opId) {
+    document.getElementById('badgePNC').textContent = '0';
+    document.getElementById('badgePNS').textContent = '0';
+    return;
+  }
+
   const cdActifs = dbData.cd.filter(cd => !cd.cache);
-  let totalPNC = 0;
-  let totalPNS = 0;
+  let nbPNC = 0;
+  let nbPNS = 0;
 
   // CONF1 = PNC, CONF2 = PNS
   cdActifs.forEach(cd => {
-    totalPNC += 1; // Chaque CD a un PNC (CONF1)
-    totalPNS += 1; // Chaque CD a un PNS (CONF2)
+    if (cd.conf1 === opId) nbPNC++;  // Cet opérateur était en CONF1 (PNC)
+    if (cd.conf2 === opId) nbPNS++;  // Cet opérateur était en CONF2 (PNS)
   });
 
-  document.getElementById('badgePNC').textContent = totalPNC;
-  document.getElementById('badgePNS').textContent = totalPNS;
+  document.getElementById('badgePNC').textContent = nbPNC;
+  document.getElementById('badgePNS').textContent = nbPNS;
 }
 
 function toggleCacheCD(cdId) {
@@ -1915,6 +2101,9 @@ function afficherFeedback() {
   const opId = document.getElementById('feedbackOperateur').value;
   if (!opId) {
     document.getElementById('feedbackContent').innerHTML = '';
+    // Réinitialiser les badges
+    document.getElementById('badgePNC').textContent = '0';
+    document.getElementById('badgePNS').textContent = '0';
     // Retirer le thème
     document.getElementById('feedback').style.removeProperty('background');
     document.getElementById('feedback').style.removeProperty('position');
@@ -1974,8 +2163,8 @@ function afficherFeedback() {
   // Pour les stats : EXCLURE les CD cachés
   const cdOperateur = cdOperateurAll.filter(cd => !cd.cache);
 
-  // Calculer PNC et PNS pour tous les opérateurs (pour les badges)
-  calculerPNCPNS();
+  // Calculer PNC et PNS pour cet opérateur spécifique (pour les badges)
+  calculerPNCPNS(opId);
 
   if (cdOperateur.length === 0) {
     document.getElementById('feedbackContent').innerHTML = '<div class="empty-state"><p>Aucun CD trouvé pour cet opérateur</p></div>';
@@ -3024,7 +3213,7 @@ function afficherMachinePerformance() {
               const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
               const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
               return `
-                <tr class="${rankClass}">
+                <tr class="${rankClass}" style="cursor: pointer;" onclick="voirDetailsMachine('${machineId}')">
                   <td>${medal} ${index + 1}</td>
                   <td><strong>${stats.numero}</strong></td>
                   <td>${stats.type}</td>
