@@ -76,7 +76,6 @@
                 <button class="nav-tab" data-tab="manager">Vue Manager</button>
                 <button class="nav-tab" data-tab="machine">Machine</button>
                 <button class="nav-tab" data-tab="qualite">Qualité</button>
-                <button class="nav-tab" data-tab="insights">📊 Insights</button>
                 <button class="nav-tab" data-tab="admin">Admin</button>
                 <button class="nav-tab" data-tab="sauvegarde">💾 Sauvegarde</button>
             </div>
@@ -90,14 +89,6 @@
             
             <!-- KPI Cards -->
             <div class="kpi-container" id="kpiContainer">
-                <!-- Rempli par JavaScript -->
-            </div>
-
-            <!-- Alertes Visuelles -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>🚨 Alertes & Surveillance</h3>
-            </div>
-            <div id="alertsContainer">
                 <!-- Rempli par JavaScript -->
             </div>
 
@@ -147,9 +138,41 @@
 
         <!-- VUE MANAGER -->
         <section id="manager" class="tab-content">
-            <h2>Vue Manager - Classement Opérateurs</h2>
-            <div id="managerContent">
+            <h2>Vue Manager</h2>
+
+            <!-- Sélecteur de vue -->
+            <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                <button id="btnVueOperateurs" class="btn btn--primary" onclick="afficherVueManager('operateurs')">
+                    👤 Classement Opérateurs
+                </button>
+                <button id="btnVueBinomes" class="btn btn--secondary" onclick="afficherVueManager('binomes')">
+                    👥 Classement Binômes
+                </button>
+            </div>
+
+            <!-- Contenu Opérateurs -->
+            <div id="managerOperateursContent" style="display: block;">
                 <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Contenu Binômes -->
+            <div id="managerBinomesContent" style="display: none;">
+                <div class="table-container">
+                    <table id="tableBestTeams">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Binôme</th>
+                                <th>Performance Moyenne</th>
+                                <th>Taux NIV 1</th>
+                                <th>Nombre de CD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rempli par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -159,50 +182,8 @@
             <div id="machineContent">
                 <!-- Rempli par JavaScript -->
             </div>
-        </section>
 
-        <!-- VUE QUALITÉ -->
-        <section id="qualite" class="tab-content">
-            <h2>Qualité - Analyse Retours Archi et CQ</h2>
-            <div id="qualiteContent">
-                <!-- Rempli par JavaScript -->
-            </div>
-        </section>
-
-        <!-- VUE INSIGHTS -->
-        <section id="insights" class="tab-content">
-            <h2>📊 Insights & Analytics Avancés</h2>
-
-            <!-- Recommandations -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>💡 Recommandations</h3>
-            </div>
-            <div id="recommendationsContent">
-                <!-- Rempli par JavaScript -->
-            </div>
-
-            <!-- Meilleurs Binômes -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>🏆 Top 10 Meilleurs Binômes</h3>
-            </div>
-            <div class="table-container">
-                <table id="tableBestTeams">
-                    <thead>
-                        <tr>
-                            <th>Rang</th>
-                            <th>Binôme</th>
-                            <th>Performance Moyenne</th>
-                            <th>Taux NIV 1</th>
-                            <th>Nombre de CD</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Rempli par JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Machines Problématiques -->
+            <!-- Machines à Surveiller -->
             <div class="section-header" style="margin-top: var(--space-32);">
                 <h3>⚠️ Machines à Surveiller</h3>
             </div>
@@ -223,13 +204,13 @@
                     </tbody>
                 </table>
             </div>
+        </section>
 
-            <!-- Tendances Hebdomadaires -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>📈 Tendances Hebdomadaires</h3>
-            </div>
-            <div class="chart-card">
-                <canvas id="weeklyTrendsChart" style="max-height: 400px;"></canvas>
+        <!-- VUE QUALITÉ -->
+        <section id="qualite" class="tab-content">
+            <h2>Qualité - Analyse Retours Archi et CQ</h2>
+            <div id="qualiteContent">
+                <!-- Rempli par JavaScript -->
             </div>
         </section>
 
@@ -795,6 +776,19 @@
         <!-- VUE 4: FEEDBACK -->
         <section id="feedback" class="tab-content">
             <h2>Feedback Individuel</h2>
+
+            <!-- Répartition PNC/PNS -->
+            <div style="display: flex; gap: 12px; margin-bottom: 24px; justify-content: flex-end;">
+                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--color-surface); border-radius: var(--radius-base); border: 1px solid var(--color-border);">
+                    <span style="font-size: 13px; color: var(--color-text-secondary); font-weight: 500;">PNC</span>
+                    <span id="badgePNC" style="font-size: 15px; font-weight: 700; color: var(--color-primary);">0</span>
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--color-surface); border-radius: var(--radius-base); border: 1px solid var(--color-border);">
+                    <span style="font-size: 13px; color: var(--color-text-secondary); font-weight: 500;">PNS</span>
+                    <span id="badgePNS" style="font-size: 15px; font-weight: 700; color: var(--color-warning);">0</span>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Sélectionner un opérateur</label>
                 <select id="feedbackOperateur" class="form-control" onchange="afficherFeedback()">

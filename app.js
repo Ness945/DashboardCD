@@ -243,9 +243,13 @@ function activerOnglet(tabName) {
   } else if (tabName === 'stats') {
     afficherStats();
   } else if (tabName === 'manager') {
-    afficherVueManager();
+    afficherVueManager('operateurs');
   } else if (tabName === 'machine') {
     afficherMachinePerformance();
+    const cdData = getFilteredCD({ excludeCached: true });
+    if (typeof afficherMachinesProblematiques === 'function') {
+      afficherMachinesProblematiques(cdData);
+    }
   } else if (tabName === 'qualite') {
     afficherQualite();
   } else if (tabName === 'sauvegarde') {
@@ -1306,13 +1310,47 @@ function voirDetailsCD(id) {
   currentModalCDId = id;
   const cd = dbData.cd.find(c => c.id === id);
   if (!cd) return;
-  
+
   const machine = dbData.machines.find(m => m.id === cd.numMachine);
   const op1 = dbData.operateurs.find(o => o.id === cd.conf1);
   const op2 = dbData.operateurs.find(o => o.id === cd.conf2);
-  const codeQualite = cd.codeQualite ? dbData.codesQualite.find(c => c.id === cd.codeQualite) : null;
-  const codeCQ = cd.codeCQ ? dbData.codesCQ.find(c => c.id === cd.codeCQ) : null;
-  const codeIncident = cd.codeIncident ? dbData.codesIncident.find(c => c.id === cd.codeIncident) : null;
+
+  // Support causes multiples
+  const codesQualite = [];
+  if (cd.codesQualite && Array.isArray(cd.codesQualite)) {
+    cd.codesQualite.forEach(codeId => {
+      const code = dbData.codesQualite.find(c => c.id === codeId);
+      if (code) codesQualite.push(code);
+    });
+  } else if (cd.codeQualite) {
+    const code = dbData.codesQualite.find(c => c.id === cd.codeQualite);
+    if (code) codesQualite.push(code);
+  }
+
+  const codesCQ = [];
+  if (cd.codesCQ && Array.isArray(cd.codesCQ)) {
+    cd.codesCQ.forEach(codeId => {
+      const code = dbData.codesCQ.find(c => c.id === codeId);
+      if (code) codesCQ.push(code);
+    });
+  } else if (cd.codeCQ) {
+    const code = dbData.codesCQ.find(c => c.id === cd.codeCQ);
+    if (code) codesCQ.push(code);
+  }
+
+  const codesIncident = [];
+  if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+    cd.codesIncident.forEach(codeId => {
+      const code = dbData.codesIncident.find(c => c.id === codeId);
+      if (code) codesIncident.push(code);
+    });
+  } else if (cd.codeIncident) {
+    const code = dbData.codesIncident.find(c => c.id === cd.codeIncident);
+    if (code) codesIncident.push(code);
+  }
+
+  // Tags
+  const tags = cd.tags ? cd.tags.map(tagId => dbData.tags.find(t => t.id === tagId)).filter(t => t) : [];
   
   let qualiteClass, qualiteLabel;
   if (cd.qualite === '1') {
@@ -1406,32 +1444,49 @@ function voirDetailsCD(id) {
     </div>
     
     <div class="modal-performance-section" style="background: linear-gradient(to right, rgba(252, 229, 0, 0.05), transparent); border-left: 4px solid #FCE500; padding-left: var(--space-16);">
-      <h4 style="color: #27509B; margin-bottom: var(--space-16);">Temporalité &amp; Durées</h4>
+      <h4 style="color: #27509B; margin-bottom: var(--space-16);">Temporalité &amp; Performance</h4>
       <div class="modal-performance-grid">
         <div class="modal-performance-item">
           <div class="modal-performance-label">D1 Réel</div>
           <div class="modal-performance-value" style="color: var(--michelin-blue);">${cd.d1Reel} h</div>
         </div>
-        
+
         <div class="modal-performance-item">
           <div class="modal-performance-label">D1 Net</div>
           <div class="modal-performance-value" style="color: var(--color-primary);">${cd.d1Net} h</div>
         </div>
-        
+
         <div class="modal-performance-item">
           <div class="modal-performance-label">Différence (Temps perdu)</div>
           <div class="modal-performance-value" style="color: ${(cd.d1Reel - cd.d1Net) > 1 ? 'var(--color-error)' : 'var(--color-success)'};">${(cd.d1Reel - cd.d1Net).toFixed(1)} h</div>
         </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Efficacité</div>
+          <div class="modal-performance-value">${cd.efficacite ? cd.efficacite.toFixed(1) : 0}%</div>
+        </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Performance Globale</div>
+          <div class="modal-performance-value" style="color: ${cd.performance >= 80 ? 'var(--color-success)' : cd.performance >= 50 ? 'var(--color-warning)' : 'var(--color-error)'}; font-weight: 700;">${cd.performance ? cd.performance.toFixed(1) : 0}%</div>
+        </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Temps Standard</div>
+          <div class="modal-performance-value">${cd.tempsStandard || 8} h</div>
+        </div>
       </div>
     </div>
     
-    ${codeQualite ? `
+    ${codesQualite.length > 0 ? `
       <div class="modal-codes-section">
-        <h4>Code Retour Archi</h4>
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code :</div>
-          <div class="modal-code-value"><strong>${codeQualite.code}</strong> - ${codeQualite.description}</div>
-        </div>
+        <h4>Codes Retour Archi ${codesQualite.length > 1 ? `(${codesQualite.length})` : ''}</h4>
+        ${codesQualite.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')}
       </div>
     ` : ''}
     
@@ -1443,12 +1498,14 @@ function voirDetailsCD(id) {
           <span class="status ${cd.cqApres === 'Oui' ? 'status--success' : 'status--info'}" style="font-weight: var(--font-weight-bold); font-size: var(--font-size-base);">${cd.cqApres === 'Oui' ? 'OUI' : 'NON'}</span>
         </div>
       </div>
-      ${codeCQ ? `
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code CQ :</div>
-          <div class="modal-code-value"><strong>${codeCQ.code}</strong> - ${codeCQ.description}</div>
-        </div>
-      ` : `
+      ${codesCQ.length > 0 ?
+        codesCQ.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code CQ :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')
+      : `
         <div class="modal-code-item">
           <div class="modal-code-label"></div>
           <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucun CQ</div>
@@ -1464,21 +1521,23 @@ function voirDetailsCD(id) {
           <span class="status ${cd.incident === 'Oui' ? 'status--warning' : 'status--info'}" style="font-weight: var(--font-weight-bold); font-size: var(--font-size-base);">${cd.incident === 'Oui' ? 'OUI' : 'NON'}</span>
         </div>
       </div>
-      ${codeIncident ? `
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code Incident :</div>
-          <div class="modal-code-value"><strong>${codeIncident.code}</strong> - ${codeIncident.description}</div>
-        </div>
-      ` : `
+      ${codesIncident.length > 0 ?
+        codesIncident.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code Incident :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')
+      : `
         <div class="modal-code-item">
           <div class="modal-code-label"></div>
           <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucun incident</div>
         </div>
       `}
-      ${cd.commentaireIncident ? `
+      ${cd.commentaireIncident || (cd.commentsIncident && cd.commentsIncident.global) ? `
         <div class="modal-code-item">
           <div class="modal-code-label">Commentaire :</div>
-          <div class="modal-code-value">${cd.commentaireIncident}</div>
+          <div class="modal-code-value">${cd.commentaireIncident || cd.commentsIncident.global}</div>
         </div>
       ` : ''}
     </div>
@@ -1488,6 +1547,19 @@ function voirDetailsCD(id) {
         <h4>Commentaire Général</h4>
         <div class="modal-code-item">
           <div class="modal-code-value">${cd.commentaire}</div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${tags.length > 0 ? `
+      <div class="modal-codes-section">
+        <h4>🏷️ Tags</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+          ${tags.map(tag => `
+            <span style="display: inline-block; padding: 6px 12px; border-radius: 12px; background: ${tag.couleur}; color: white; font-size: 13px; font-weight: 500;">
+              ${tag.nom}
+            </span>
+          `).join('')}
         </div>
       </div>
     ` : ''}
@@ -1717,7 +1789,107 @@ function resetFiltres() {
   afficherHistorique();
 }
 
+// === VUE MANAGER ===
+function afficherVueManager(vue) {
+  if (vue === 'operateurs') {
+    document.getElementById('managerOperateursContent').style.display = 'block';
+    document.getElementById('managerBinomesContent').style.display = 'none';
+    document.getElementById('btnVueOperateurs').className = 'btn btn--primary';
+    document.getElementById('btnVueBinomes').className = 'btn btn--secondary';
+    afficherManager();
+  } else if (vue === 'binomes') {
+    document.getElementById('managerOperateursContent').style.display = 'none';
+    document.getElementById('managerBinomesContent').style.display = 'block';
+    document.getElementById('btnVueOperateurs').className = 'btn btn--secondary';
+    document.getElementById('btnVueBinomes').className = 'btn btn--primary';
+    afficherBestTeams();
+  }
+}
+
+function afficherManager() {
+  const cdData = getFilteredCD({ excludeCached: true });
+  const container = document.getElementById('managerOperateursContent');
+
+  if (!container) return;
+
+  if (cdData.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
+    return;
+  }
+
+  // Calculer les stats par opérateur
+  const operateurStats = {};
+  cdData.forEach(cd => {
+    [cd.conf1, cd.conf2].forEach(opId => {
+      if (!operateurStats[opId]) {
+        operateurStats[opId] = {
+          opId: opId,
+          cd: [],
+          totalPerf: 0,
+          niv1: 0
+        };
+      }
+      operateurStats[opId].cd.push(cd);
+      operateurStats[opId].totalPerf += cd.performance;
+      if (cd.qualite === '1') operateurStats[opId].niv1++;
+    });
+  });
+
+  // Convertir en tableau et trier
+  const operateurs = Object.values(operateurStats).map(stat => {
+    const op = dbData.operateurs.find(o => o.id === stat.opId);
+    return {
+      nom: op ? op.nom : 'Inconnu',
+      nbCD: stat.cd.length,
+      perfMoyenne: (stat.totalPerf / stat.cd.length).toFixed(1),
+      tauxNiv1: ((stat.niv1 / stat.cd.length) * 100).toFixed(1)
+    };
+  }).sort((a, b) => b.perfMoyenne - a.perfMoyenne);
+
+  // Générer le HTML
+  let html = '<div class="table-container"><table><thead><tr>';
+  html += '<th>Rang</th><th>Opérateur</th><th>Performance Moyenne</th><th>Taux NIV 1</th><th>Nombre de CD</th>';
+  html += '</tr></thead><tbody>';
+
+  operateurs.forEach((op, index) => {
+    const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+    html += `<tr class="${rankClass}">`;
+    html += `<td>${medal} ${index + 1}</td>`;
+    html += `<td><strong>${op.nom}</strong></td>`;
+    html += `<td>${op.perfMoyenne}%</td>`;
+    html += `<td>${op.tauxNiv1}%</td>`;
+    html += `<td>${op.nbCD}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+function afficherBestTeams() {
+  const cdData = getFilteredCD({ excludeCached: true });
+  if (typeof afficherMeilleursBinomes === 'function') {
+    afficherMeilleursBinomes(cdData);
+  }
+}
+
 // === FEEDBACK ===
+function calculerPNCPNS() {
+  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  let totalPNC = 0;
+  let totalPNS = 0;
+
+  // CONF1 = PNC, CONF2 = PNS
+  cdActifs.forEach(cd => {
+    totalPNC += 1; // Chaque CD a un PNC (CONF1)
+    totalPNS += 1; // Chaque CD a un PNS (CONF2)
+  });
+
+  document.getElementById('badgePNC').textContent = totalPNC;
+  document.getElementById('badgePNS').textContent = totalPNS;
+}
+
 function toggleCacheCD(cdId) {
   const cd = dbData.cd.find(c => c.id === cdId);
   if (!cd) return;
@@ -1798,10 +1970,13 @@ function afficherFeedback() {
     feedbackSection.style.removeProperty('position');
   }
   const cdOperateurAll = dbData.cd.filter(cd => cd.conf1 === opId || cd.conf2 === opId);
-  
+
   // Pour les stats : EXCLURE les CD cachés
   const cdOperateur = cdOperateurAll.filter(cd => !cd.cache);
-  
+
+  // Calculer PNC et PNS pour tous les opérateurs (pour les badges)
+  calculerPNCPNS();
+
   if (cdOperateur.length === 0) {
     document.getElementById('feedbackContent').innerHTML = '<div class="empty-state"><p>Aucun CD trouvé pour cet opérateur</p></div>';
     return;
@@ -2374,11 +2549,6 @@ function afficherAccueil() {
     </div>
   `;
   document.getElementById('kpiContainer').innerHTML = kpiHTML;
-
-  // Alertes visuelles
-  if (typeof visualAlerts !== 'undefined') {
-    visualAlerts.showAlertsInDashboard('alertsContainer');
-  }
 
   // Statistiques comparatives
   if (typeof afficherStatsComparatives === 'function') {
