@@ -1407,54 +1407,62 @@ function editerCD(id) {
 
   currentEditingCD = id;
 
-  // Pré-remplir le formulaire
-  document.getElementById('cdDate').value = cd.date;
-  document.getElementById('cdHeure').value = cd.heure;
-  document.getElementById('cdTypeProd').value = cd.typeProd;
-  document.getElementById('cdTypeMachine').value = cd.typeMachine;
-  document.getElementById('cdNumMachine').value = cd.numMachine;
-  document.getElementById('cdTypeCD').value = cd.typeCD;
-  document.getElementById('cdCAI').value = cd.cai;
-  document.getElementById('cdDimension').value = cd.dimension;
-  document.getElementById('cdConf1').value = cd.conf1;
-  document.getElementById('cdConf2').value = cd.conf2;
-  document.getElementById('cdD1Reel').value = cd.d1Reel;
-  document.getElementById('cdD1Net').value = cd.d1Net;
-  document.getElementById('cdQualite').value = cd.qualite;
-  document.getElementById('cdCQApres').value = cd.cqApres;
-  document.getElementById('cdIncident').value = cd.incident;
-  document.getElementById('cdCommentaire').value = cd.commentaire || '';
-
-  tempCodeQualite = cd.codeQualite;
-  tempCodeCQ = cd.codeCQ;
-  tempCodeIncident = cd.codeIncident;
-  tempCommentaireIncident = cd.commentaireIncident;
-
-  // Désactiver tous les badges d'abord
-  document.querySelectorAll('.badge-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-
-  // Activer les badges appropriés en fonction des valeurs des inputs cachés
-  // Pour chaque groupe de badges, activer le bon badge
-  document.querySelectorAll('.badge-group').forEach(group => {
-    const hiddenInput = group.nextElementSibling;
-    if (!hiddenInput || hiddenInput.tagName !== 'INPUT' || hiddenInput.type !== 'hidden') return;
-
-    const currentValue = hiddenInput.value;
-    if (!currentValue) return;
-
-    // Trouver et activer le badge correspondant dans ce groupe
-    group.querySelectorAll('.badge-btn').forEach(btn => {
-      if (btn.getAttribute('data-value') === currentValue) {
-        btn.classList.add('active');
-      }
-    });
-  });
-
-  // Basculer vers l'onglet de saisie
+  // Basculer vers l'onglet de saisie AVANT de remplir les champs
   activerOnglet('saisir');
-  alert('Mode édition activé. Modifiez les champs et cliquez sur "Enregistrer CD".');
+
+  // S'assurer que les selects sont remplis avec les bonnes options
+  remplirSelectsMachines();
+  remplirSelectsOperateurs();
+
+  // Utiliser setTimeout pour s'assurer que les selects sont bien remplis avant de set les valeurs
+  setTimeout(() => {
+    // Pré-remplir le formulaire
+    document.getElementById('cdDate').value = cd.date;
+    document.getElementById('cdHeure').value = cd.heure;
+    document.getElementById('cdTypeProd').value = cd.typeProd;
+    document.getElementById('cdTypeMachine').value = cd.typeMachine;
+    document.getElementById('cdNumMachine').value = cd.numMachine;
+    document.getElementById('cdTypeCD').value = cd.typeCD;
+    document.getElementById('cdCAI').value = cd.cai;
+    document.getElementById('cdDimension').value = cd.dimension;
+    document.getElementById('cdConf1').value = cd.conf1;
+    document.getElementById('cdConf2').value = cd.conf2;
+    document.getElementById('cdD1Reel').value = cd.d1Reel;
+    document.getElementById('cdD1Net').value = cd.d1Net;
+    document.getElementById('cdQualite').value = cd.qualite;
+    document.getElementById('cdCQApres').value = cd.cqApres;
+    document.getElementById('cdIncident').value = cd.incident;
+    document.getElementById('cdCommentaire').value = cd.commentaire || '';
+
+    tempCodeQualite = cd.codeQualite;
+    tempCodeCQ = cd.codeCQ;
+    tempCodeIncident = cd.codeIncident;
+    tempCommentaireIncident = cd.commentaireIncident;
+
+    // Désactiver tous les badges d'abord
+    document.querySelectorAll('.badge-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    // Activer les badges appropriés en fonction des valeurs des inputs cachés
+    // Pour chaque groupe de badges, activer le bon badge
+    document.querySelectorAll('.badge-group').forEach(group => {
+      const hiddenInput = group.nextElementSibling;
+      if (!hiddenInput || hiddenInput.tagName !== 'INPUT' || hiddenInput.type !== 'hidden') return;
+
+      const currentValue = hiddenInput.value;
+      if (!currentValue) return;
+
+      // Trouver et activer le badge correspondant dans ce groupe
+      group.querySelectorAll('.badge-btn').forEach(btn => {
+        if (btn.getAttribute('data-value') === currentValue) {
+          btn.classList.add('active');
+        }
+      });
+    });
+
+    alert('Mode édition activé. Modifiez les champs et cliquez sur "Enregistrer CD".');
+  }, 50);
 }
 
 function supprimerCD(id) {
