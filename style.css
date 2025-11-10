@@ -1222,6 +1222,13 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+/* Largeur colonne Actions dans l'historique */
+#tableHistorique td:nth-last-child(1),
+#tableHistorique th:nth-last-child(1) {
+  width: 100px;
+  max-width: 100px;
+}
+
 /* CD Caché - Visible mais grisé */
 .cd-cache {
   opacity: 0.45;
@@ -2318,7 +2325,7 @@ dd {
 /* Emoji Actions */
 .emoji-actions {
   display: flex;
-  gap: var(--space-8);
+  gap: var(--space-4);
   align-items: center;
 }
 
@@ -2326,8 +2333,8 @@ dd {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 20px;
-  padding: var(--space-4);
+  font-size: 14px;
+  padding: var(--space-2);
   transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
   position: relative;
 }

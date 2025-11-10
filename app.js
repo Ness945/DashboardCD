@@ -2223,7 +2223,7 @@ function afficherAccueil() {
   // patched afficherAccueil: utilize globally filtered list
   const cdBase = getFilteredCD({ excludeCached:false });
 
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  const cdActifs = cdBase.filter(cd => !cd.cache);
   
   // KPI 1: Total CD
   const totalCD = cdActifs.length;
