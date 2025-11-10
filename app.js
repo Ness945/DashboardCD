@@ -73,6 +73,7 @@ function rafraichirVuesApresFiltre(){
   try { afficherVueManager && afficherVueManager(); } catch(e){}
   try { afficherMachinePerformance && afficherMachinePerformance(); } catch(e){}
   try { afficherQualite && afficherQualite(); } catch(e){}
+  try { afficherInsights && afficherInsights(); } catch(e){}
 }
 
 // Base de données en mémoire
@@ -1923,7 +1924,7 @@ function afficherFeedback() {
                     <div class="tooltip">
                       <span class="status ${cqBadgeClass}" style="cursor: pointer;">${cqLabel}</span>
                       <span class="tooltiptext">
-                        <strong>CQ effectué(e)</strong><br>
+                        <strong>CQ Post CD</strong><br>
                         Code: <strong>${codeCQ.code}</strong><br>
                         ${codeCQ.description}
                       </span>
@@ -2580,7 +2581,7 @@ function afficherVueManager() {
   // patched afficherVueManager: utilize globally filtered list
   const cdBase = getFilteredCD({ excludeCached:false });
 
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  const cdActifs = cdBase.filter(cd => !cd.cache);
   
   // Calculer stats par opérateur
   const opStats = {};
@@ -2677,7 +2678,7 @@ function afficherMachinePerformance() {
   // patched afficherMachinePerformance: utilize globally filtered list
   const cdBase = getFilteredCD({ excludeCached:false });
 
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  const cdActifs = cdBase.filter(cd => !cd.cache);
   
   // Stats par machine
   const machineStats = {};
@@ -2924,7 +2925,7 @@ function afficherQualite() {
   // patched afficherQualite: utilize globally filtered list
   const cdBase = getFilteredCD({ excludeCached:false });
 
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  const cdActifs = cdBase.filter(cd => !cd.cache);
   
   // Stats Retour Archi
   const retourArchiStats = {
