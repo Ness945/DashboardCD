@@ -317,9 +317,9 @@ class MultipleCausesManager {
     html += `
           </div>
 
-          <div class="form-group" style="margin-top: 20px;">
-            <label class="form-label">Temps d'impact global (en minutes)</label>
-            <input type="number" id="incidentGlobalTempsImpact" class="form-control" min="0" placeholder="Durée totale de l'impact en minutes" value="${this.selectedTempsImpactIncident['global'] || ''}">
+          <!-- Liste des incidents sélectionnés avec temps individuel -->
+          <div id="selectedIncidentsDetails" style="margin-top: 20px;">
+            <!-- Rempli dynamiquement par updateIncidentDetailsForm() -->
           </div>
 
           <div class="form-group" style="margin-top: 12px;">
@@ -345,6 +345,9 @@ class MultipleCausesManager {
     const existingModal = document.getElementById('modalMultipleIncident');
     if (existingModal) existingModal.remove();
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Mettre à jour la liste des incidents avec leurs champs de temps
+    this.updateIncidentDetailsForm();
   }
 
   toggleIncident(codeId, element) {
@@ -364,6 +367,64 @@ class MultipleCausesManager {
     if (countElement) {
       countElement.textContent = this.selectedCodesIncident.length;
     }
+
+    // Mettre à jour les champs de temps individuel
+    this.updateIncidentDetailsForm();
+  }
+
+  updateIncidentDetailsForm() {
+    const container = document.getElementById('selectedIncidentsDetails');
+    if (!container) return;
+
+    if (this.selectedCodesIncident.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = `
+      <div style="background: var(--color-bg-1); padding: var(--space-16); border-radius: var(--radius-base); border: 1px solid var(--color-border);">
+        <h4 style="margin: 0 0 var(--space-12) 0; color: var(--color-text);">⏱️ Temps d'impact par incident</h4>
+        <div style="display: grid; gap: var(--space-12);">
+    `;
+
+    this.selectedCodesIncident.forEach(codeId => {
+      const code = dbData.codesIncident.find(c => c.id === codeId);
+      if (code) {
+        const currentValue = this.selectedTempsImpactIncident[codeId] || '';
+        html += `
+          <div style="display: grid; grid-template-columns: 1fr auto; gap: var(--space-12); align-items: center;">
+            <div>
+              <strong style="color: var(--color-text);">${code.code}</strong>
+              <div style="font-size: 13px; color: var(--color-text-secondary);">${code.description}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input
+                type="number"
+                id="incidentTemps_${codeId}"
+                class="form-control"
+                min="0"
+                placeholder="min"
+                value="${currentValue}"
+                style="width: 100px; text-align: center;"
+                onchange="multipleCausesManager.updateIncidentTemps('${codeId}', this.value)"
+              >
+              <span style="color: var(--color-text-secondary); font-size: 14px;">min</span>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  updateIncidentTemps(codeId, value) {
+    this.selectedTempsImpactIncident[codeId] = value ? parseInt(value) : 0;
   }
 
   validateIncident() {
@@ -376,9 +437,8 @@ class MultipleCausesManager {
     const comment = document.getElementById('incidentGlobalComment')?.value || '';
     this.selectedCommentsIncident['global'] = comment;
 
-    // Sauvegarder le temps d'impact global
-    const tempsImpact = document.getElementById('incidentGlobalTempsImpact')?.value || '';
-    this.selectedTempsImpactIncident['global'] = tempsImpact ? parseInt(tempsImpact) : 0;
+    // Les temps d'impact individuels sont déjà sauvegardés via updateIncidentTemps()
+    // Pas besoin de récupérer un temps global
 
     this.updateIncidentDisplay();
     const modal = document.getElementById('modalMultipleIncident');
@@ -403,9 +463,11 @@ class MultipleCausesManager {
     this.selectedCodesIncident.forEach(codeId => {
       const code = dbData.codesIncident.find(c => c.id === codeId);
       if (code) {
+        const temps = this.selectedTempsImpactIncident[codeId] || 0;
+        const tempsDisplay = temps > 0 ? ` (${temps} min)` : '';
         html += `
           <div class="selected-cause-badge">
-            <span>${code.code}</span>
+            <span>${code.code}${tempsDisplay}</span>
             <button class="remove-cause-btn" onclick="multipleCausesManager.removeIncident('${codeId}')" title="Retirer">✕</button>
           </div>
         `;
@@ -419,6 +481,8 @@ class MultipleCausesManager {
     const index = this.selectedCodesIncident.indexOf(codeId);
     if (index > -1) {
       this.selectedCodesIncident.splice(index, 1);
+      // Supprimer aussi le temps d'impact associé
+      delete this.selectedTempsImpactIncident[codeId];
       this.updateIncidentDisplay();
     }
   }
@@ -454,6 +518,14 @@ class MultipleCausesManager {
       this.selectedCommentsIncident = { ...cd.commentsIncident };
     } else if (cd.commentaireIncident) {
       this.selectedCommentsIncident = { global: cd.commentaireIncident };
+    }
+
+    // Charger les temps d'impact
+    if (cd.tempsImpactIncident && typeof cd.tempsImpactIncident === 'object') {
+      this.selectedTempsImpactIncident = { ...cd.tempsImpactIncident };
+    } else if (cd.tempsImpact) {
+      // Migration: ancien système avec temps global
+      this.selectedTempsImpactIncident = { global: cd.tempsImpact };
     }
 
     // Mettre à jour les affichages

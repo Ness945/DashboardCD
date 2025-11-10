@@ -4101,9 +4101,16 @@ function afficherAnalyseIncidents() {
   let tempsImpactTotal = 0;
   cdAvecIncident.forEach(cd => {
     if (cd.tempsImpact) {
+      // Ancien système : temps global
       tempsImpactTotal += cd.tempsImpact;
-    } else if (cd.tempsImpactIncident && cd.tempsImpactIncident.global) {
-      tempsImpactTotal += cd.tempsImpactIncident.global;
+    } else if (cd.tempsImpactIncident) {
+      // Nouveau système : temps individuels par incident
+      // Additionner tous les temps individuels
+      Object.values(cd.tempsImpactIncident).forEach(temps => {
+        if (typeof temps === 'number') {
+          tempsImpactTotal += temps;
+        }
+      });
     }
   });
   
@@ -4130,15 +4137,18 @@ function afficherAnalyseIncidents() {
       incidentsParCode[cd.codeIncident].cds.push(cd);
     }
     
-    // Temps d'impact
-    const impact = cd.tempsImpact || (cd.tempsImpactIncident && cd.tempsImpactIncident.global) || 0;
+    // Temps d'impact par code incident
     if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+      // Nouveau système : temps individuels par incident
       cd.codesIncident.forEach(codeId => {
         if (incidentsParCode[codeId]) {
-          incidentsParCode[codeId].tempsImpact += impact;
+          const tempsIndividuel = (cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]) || 0;
+          incidentsParCode[codeId].tempsImpact += tempsIndividuel;
         }
       });
     } else if (cd.codeIncident && incidentsParCode[cd.codeIncident]) {
+      // Ancien système : temps global
+      const impact = cd.tempsImpact || 0;
       incidentsParCode[cd.codeIncident].tempsImpact += impact;
     }
   });
