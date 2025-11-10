@@ -2055,27 +2055,6 @@ function afficherBestTeams() {
 }
 
 // === FEEDBACK ===
-function calculerPNCPNS(opId) {
-  if (!opId) {
-    document.getElementById('badgePNC').textContent = '0';
-    document.getElementById('badgePNS').textContent = '0';
-    return;
-  }
-
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
-  let nbPNC = 0;
-  let nbPNS = 0;
-
-  // CONF1 = PNC, CONF2 = PNS
-  cdActifs.forEach(cd => {
-    if (cd.conf1 === opId) nbPNC++;  // Cet opérateur était en CONF1 (PNC)
-    if (cd.conf2 === opId) nbPNS++;  // Cet opérateur était en CONF2 (PNS)
-  });
-
-  document.getElementById('badgePNC').textContent = nbPNC;
-  document.getElementById('badgePNS').textContent = nbPNS;
-}
-
 function toggleCacheCD(cdId) {
   const cd = dbData.cd.find(c => c.id === cdId);
   if (!cd) return;
@@ -2101,9 +2080,6 @@ function afficherFeedback() {
   const opId = document.getElementById('feedbackOperateur').value;
   if (!opId) {
     document.getElementById('feedbackContent').innerHTML = '';
-    // Réinitialiser les badges
-    document.getElementById('badgePNC').textContent = '0';
-    document.getElementById('badgePNS').textContent = '0';
     // Retirer le thème
     document.getElementById('feedback').style.removeProperty('background');
     document.getElementById('feedback').style.removeProperty('position');
@@ -2163,14 +2139,20 @@ function afficherFeedback() {
   // Pour les stats : EXCLURE les CD cachés
   const cdOperateur = cdOperateurAll.filter(cd => !cd.cache);
 
-  // Calculer PNC et PNS pour cet opérateur spécifique (pour les badges)
-  calculerPNCPNS(opId);
+  // Calculer PNC et PNS pour cet opérateur spécifique
+  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  let nbPNC = 0;
+  let nbPNS = 0;
+  cdActifs.forEach(cd => {
+    if (cd.conf1 === opId) nbPNC++;
+    if (cd.conf2 === opId) nbPNS++;
+  });
 
   if (cdOperateur.length === 0) {
     document.getElementById('feedbackContent').innerHTML = '<div class="empty-state"><p>Aucun CD trouvé pour cet opérateur</p></div>';
     return;
   }
-  
+
   // Calculs
   const nbCD = cdOperateur.length;
   const d1Moyen = cdOperateur.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD;
@@ -2261,6 +2243,14 @@ function afficherFeedback() {
       <div class="stat-card">
         <h4>Anomalies</h4>
         <div class="value" style="color: ${nbAnomalies > 0 ? 'var(--color-error)' : 'var(--color-success)'}">${nbAnomalies}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%); color: white;">
+        <h4 style="color: white;">PNC (CONF1)</h4>
+        <div class="value" style="color: white;">${nbPNC}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white;">
+        <h4 style="color: white;">PNS (CONF2)</h4>
+        <div class="value" style="color: white;">${nbPNS}</div>
       </div>
     </div>
 
@@ -3049,103 +3039,6 @@ function afficherStats(){
   }
   
   document.getElementById('statsContent').innerHTML = html;
-}
-
-// === VUE MANAGER TAB ===
-function afficherVueManager() {
-  // patched afficherVueManager: utilize globally filtered list
-  const cdBase = getFilteredCD({ excludeCached:false });
-
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
-  
-  // Calculer stats par opérateur
-  const opStats = {};
-  dbData.operateurs.forEach(op => {
-    const cdOp = cdActifs.filter(cd => cd.conf1 === op.id || cd.conf2 === op.id);
-    if (cdOp.length > 0) {
-      const nbCD = cdOp.length;
-      const perfMoyenne = cdOp.reduce((sum, cd) => sum + cd.performance, 0) / nbCD;
-      const efficaciteMoyenne = cdOp.reduce((sum, cd) => sum + cd.efficacite, 0) / nbCD;
-      const d1Moyen = cdOp.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD;
-      const niv1 = cdOp.filter(cd => cd.qualite === '1').length;
-      const incidents = cdOp.filter(cd => cd.incident === 'Oui').length;
-      
-      opStats[op.id] = {
-        nom: op.nom,
-        nbCD: nbCD,
-        performance: Math.round(perfMoyenne * 100) / 100,
-        efficacite: Math.round(efficaciteMoyenne * 100) / 100,
-        tauxNiv1: Math.round((niv1 / nbCD) * 100),
-        tauxIncidents: Math.round((incidents / nbCD) * 100),
-        d1Moyen: Math.round(d1Moyen * 10) / 10
-      };
-    }
-  });
-  
-  const opArray = Object.values(opStats);
-  
-  if (opArray.length === 0) {
-    document.getElementById('managerContent').innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
-    return;
-  }
-  
-  let html = '';
-  
-  // Classement 1: Performance
-  const opByPerf = [...opArray].sort((a, b) => b.performance - a.performance);
-  html += genererClassementOperateurs('Performance moyenne', opByPerf, 'performance', '%');
-  
-  // Classement 2: Efficacité
-  const opByEff = [...opArray].sort((a, b) => b.efficacite - a.efficacite);
-  html += genererClassementOperateurs('Efficacité moyenne', opByEff, 'efficacite', '%');
-  
-  // Classement 3: Taux NIV 1
-  const opByNiv1 = [...opArray].sort((a, b) => b.tauxNiv1 - a.tauxNiv1);
-  html += genererClassementOperateurs('Taux NIV 1', opByNiv1, 'tauxNiv1', '%');
-  
-  // Classement 4: Taux Incidents (inverse: moins = mieux)
-  const opByInc = [...opArray].sort((a, b) => a.tauxIncidents - b.tauxIncidents);
-  html += genererClassementOperateurs('Taux incidents (moins = mieux)', opByInc, 'tauxIncidents', '%');
-  
-  // Classement 5: D1 Moyen (inverse: moins = mieux)
-  const opByD1 = [...opArray].sort((a, b) => a.d1Moyen - b.d1Moyen);
-  html += genererClassementOperateurs('D1 moyen (moins = mieux)', opByD1, 'd1Moyen', 'h');
-  
-  document.getElementById('managerContent').innerHTML = html;
-}
-
-function genererClassementOperateurs(titre, opArray, metricKey, unit) {
-  return `
-    <div class="ranking-table">
-      <h4>${titre}</h4>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Rang</th>
-              <th>Nom</th>
-              <th>${titre}</th>
-              <th>Nb CD</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${opArray.map((op, index) => {
-              const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
-              const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
-              return `
-                <tr class="${rankClass}">
-                  <td>${medal} ${index + 1}</td>
-                  <td><strong>${op.nom}</strong></td>
-                  <td>${op[metricKey]}${unit}</td>
-                  <td>${op.nbCD}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
 }
 
 // === MACHINE TAB ===
