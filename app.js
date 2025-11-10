@@ -1404,9 +1404,9 @@ function voirDetailsCD(id) {
 function editerCD(id) {
   const cd = dbData.cd.find(c => c.id === id);
   if (!cd) return;
-  
+
   currentEditingCD = id;
-  
+
   // Pré-remplir le formulaire
   document.getElementById('cdDate').value = cd.date;
   document.getElementById('cdHeure').value = cd.heure;
@@ -1423,29 +1423,35 @@ function editerCD(id) {
   document.getElementById('cdQualite').value = cd.qualite;
   document.getElementById('cdCQApres').value = cd.cqApres;
   document.getElementById('cdIncident').value = cd.incident;
-  document.getElementById('cdCommentaire').value = cd.commentaire;
-  
+  document.getElementById('cdCommentaire').value = cd.commentaire || '';
+
   tempCodeQualite = cd.codeQualite;
   tempCodeCQ = cd.codeCQ;
   tempCodeIncident = cd.codeIncident;
   tempCommentaireIncident = cd.commentaireIncident;
-  
-  // Activer les badges appropriés
+
+  // Désactiver tous les badges d'abord
   document.querySelectorAll('.badge-btn').forEach(btn => {
     btn.classList.remove('active');
   });
-  
-  document.querySelectorAll('.badge-btn').forEach(btn => {
-    const value = btn.getAttribute('data-value');
-    const group = btn.closest('.badge-group');
-    if (!group) return;
+
+  // Activer les badges appropriés en fonction des valeurs des inputs cachés
+  // Pour chaque groupe de badges, activer le bon badge
+  document.querySelectorAll('.badge-group').forEach(group => {
     const hiddenInput = group.nextElementSibling;
-    
-    if (hiddenInput && hiddenInput.value === value) {
-      btn.classList.add('active');
-    }
+    if (!hiddenInput || hiddenInput.tagName !== 'INPUT' || hiddenInput.type !== 'hidden') return;
+
+    const currentValue = hiddenInput.value;
+    if (!currentValue) return;
+
+    // Trouver et activer le badge correspondant dans ce groupe
+    group.querySelectorAll('.badge-btn').forEach(btn => {
+      if (btn.getAttribute('data-value') === currentValue) {
+        btn.classList.add('active');
+      }
+    });
   });
-  
+
   // Basculer vers l'onglet de saisie
   activerOnglet('saisir');
   alert('Mode édition activé. Modifiez les champs et cliquez sur "Enregistrer CD".');

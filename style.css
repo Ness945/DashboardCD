@@ -2572,8 +2572,21 @@ li {
 #admin .table-container {
   margin-top: var(--space-20);
   border-radius: var(--radius-base);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 500px;
   box-shadow: var(--shadow-sm);
+}
+
+/* Fixer l'en-tête de table dans Admin */
+#admin .table-container table {
+  position: relative;
+}
+
+#admin .table-container thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 #admin table {
@@ -2588,6 +2601,8 @@ li {
   font-size: var(--font-size-xs);
   letter-spacing: 0.5px;
   padding: var(--space-12) var(--space-16);
+  position: relative;
+  z-index: 11;
 }
 
 #admin table tbody tr:hover {
