@@ -4,6 +4,14 @@ let globalDateFilter = { mode: 'all', start: null, end: null, badge: null };
 function parseISO(d){ return d ? new Date(d + 'T00:00:00') : null; }
 function fmtISO(d){ return d.toISOString().slice(0,10); }
 
+// Formater date au format JJ/MM/AA
+function formatDateJJMMJJ(dateISO) {
+  if (!dateISO) return '';
+  const [year, month, day] = dateISO.split('-');
+  const yy = year.slice(-2); // 2 derniers chiffres de l'année
+  return `${day}/${month}/${yy}`;
+}
+
 function setQuickRange(key){
   const end = new Date();
   const start = new Date(end);
@@ -1154,7 +1162,7 @@ function afficherHistorique(filteredData = null) {
     tagsHtml += `<button class="tag-add-btn" onclick="event.stopPropagation(); ouvrirSelecteurTags('${cd.id}')" title="Ajouter un tag">+ Tag</button>`;
 
     tr.innerHTML = `
-      <td>${cd.date}</td>
+      <td>${formatDateJJMMJJ(cd.date)}</td>
       <td>${cd.heure}</td>
       <td>${cd.typeProd}</td>
       <td>${machine ? machine.numero : 'N/A'}</td>
