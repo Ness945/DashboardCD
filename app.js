@@ -274,9 +274,13 @@ function initBadgeButtons() {
       // Activer celui cliqué
       this.classList.add('active');
       hiddenInput.value = this.getAttribute('data-value');
-      
+
       // Gérer les cas spéciaux
-      if (hiddenInput.id === 'cdQualite') {
+      if (hiddenInput.id === 'cdTypeMachine') {
+        // Filtrer les machines selon le type sélectionné
+        const typeMachine = this.getAttribute('data-value');
+        remplirSelectsMachines(typeMachine);
+      } else if (hiddenInput.id === 'cdQualite') {
         const niveau = this.getAttribute('data-value');
         if (niveau === '2' || niveau === '2_cc' || niveau === '3') {
           // Utiliser le système de sélection multiple
@@ -867,11 +871,16 @@ function validerIncident() {
 }
 
 // === REMPLIR LES SELECTS ===
-function remplirSelectsMachines() {
+function remplirSelectsMachines(typeMachineFiltre = null) {
   const select = document.getElementById('cdNumMachine');
   select.innerHTML = '<option value="">-- Sélectionner --</option>';
-  
-  dbData.machines.forEach(mc => {
+
+  // Filtrer les machines selon le type si un filtre est spécifié
+  const machinesFiltrees = typeMachineFiltre
+    ? dbData.machines.filter(mc => mc.type === typeMachineFiltre)
+    : dbData.machines;
+
+  machinesFiltrees.forEach(mc => {
     const option = new Option(`${mc.numero} (${mc.type})`, mc.id);
     select.add(option);
   });
