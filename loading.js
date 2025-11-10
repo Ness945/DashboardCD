@@ -266,4 +266,3 @@ try {
 }
 */
 
-console.log('✅ Loading Manager initialisé');

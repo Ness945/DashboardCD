@@ -103,6 +103,7 @@ let tempCodeQualite = null;
 let tempCodeCQ = null;
 let tempCodeIncident = null;
 let tempCommentaireIncident = null;
+let tempTempsImpact = null;
 let currentEditingCD = null;
 
 // Initialisation
@@ -251,9 +252,15 @@ function activerOnglet(tabName) {
   } else if (tabName === 'stats') {
     afficherStats();
   } else if (tabName === 'manager') {
-    afficherVueManager();
+    afficherVueManager('operateurs');
   } else if (tabName === 'machine') {
     afficherMachinePerformance();
+    const cdData = getFilteredCD({ excludeCached: true });
+    if (typeof afficherMachinesProblematiques === 'function') {
+      afficherMachinesProblematiques(cdData);
+    }
+  } else if (tabName === 'analyse') {
+    afficherAnalyse();
   } else if (tabName === 'qualite') {
     afficherQualite();
   } else if (tabName === 'sauvegarde') {
@@ -275,27 +282,61 @@ function initBadgeButtons() {
       // Activer celui cliqué
       this.classList.add('active');
       hiddenInput.value = this.getAttribute('data-value');
-      
+
       // Gérer les cas spéciaux
-      if (hiddenInput.id === 'cdQualite') {
+      if (hiddenInput.id === 'cdTypeMachine') {
+        // Filtrer les machines selon le type sélectionné
+        const typeMachine = this.getAttribute('data-value');
+        remplirSelectsMachines(typeMachine);
+      } else if (hiddenInput.id === 'cdQualite') {
         const niveau = this.getAttribute('data-value');
-        if (niveau === '2' || niveau === '2_grave' || niveau === '3') {
-          ouvrirModalCodeQualite(niveau);
+        if (niveau === '2' || niveau === '2_cc' || niveau === '3') {
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openRetourArchiSelector(niveau);
+          } else {
+            ouvrirModalCodeQualite(niveau);
+          }
         } else {
           tempCodeQualite = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesQualite = [];
+            multipleCausesManager.updateRetourArchiDisplay();
+          }
         }
       } else if (hiddenInput.id === 'cdCQApres') {
         if (this.getAttribute('data-value') === 'Oui') {
-          ouvrirModalCodeCQ();
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openCQSelector();
+          } else {
+            ouvrirModalCodeCQ();
+          }
         } else {
           tempCodeCQ = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesCQ = [];
+            multipleCausesManager.updateCQDisplay();
+          }
         }
       } else if (hiddenInput.id === 'cdIncident') {
         if (this.getAttribute('data-value') === 'Oui') {
-          ouvrirModalIncident();
+          // Utiliser le système de sélection multiple
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.openIncidentSelector();
+          } else {
+            ouvrirModalIncident();
+          }
         } else {
           tempCodeIncident = null;
           tempCommentaireIncident = null;
+          tempTempsImpact = null;
+          if (typeof multipleCausesManager !== 'undefined') {
+            multipleCausesManager.selectedCodesIncident = [];
+            multipleCausesManager.selectedCommentsIncident = {};
+            multipleCausesManager.selectedTempsImpactIncident = {};
+            multipleCausesManager.updateIncidentDisplay();
+          }
         }
       }
     });
@@ -532,12 +573,23 @@ function mettreAJourScore(niveauId) {
     if (document.getElementById('feedbackOperateur').value) {
       afficherFeedback();
     }
-    
-    alert(`Score du ${niveau.label} mis à jour à ${newScore} pts. Tous les calculs ont été recalculés.`);
+
+    showToast(`✅ Score du ${niveau.label} mis à jour à ${newScore} pts. Tous les calculs ont été recalculés.`, 'success');
   }
 }
 
 function getScoreQualite(qualiteNiveau) {
+  // Si NIV 1, score parfait
+  if (qualiteNiveau === '1') {
+    return 100;
+  }
+
+  // Si plusieurs codes sont sélectionnés, prendre le pire score
+  if (typeof multipleCausesManager !== 'undefined' && multipleCausesManager.selectedCodesQualite.length > 0) {
+    return multipleCausesManager.getWorstQualityScore();
+  }
+
+  // Sinon, utiliser le score standard du niveau
   const niveau = dbData.niveauxQualite.find(n => n.niveau === qualiteNiveau);
   return niveau ? niveau.scorePerformance : 100;
 }
@@ -800,23 +852,26 @@ function validerCodeCQ() {
 function ouvrirModalIncident() {
   const select = document.getElementById('codeIncidentSelect');
   select.innerHTML = '<option value="">-- Sélectionner un code --</option>';
-  
+
   dbData.codesIncident.forEach(code => {
     const option = new Option(`${code.code} - ${code.description}`, code.id);
     select.add(option);
   });
-  
+
   document.getElementById('commentaireIncident').value = '';
+  document.getElementById('tempsImpactIncident').value = '';
   ouvrirModal('modalIncident');
 }
 
 function validerIncident() {
   const codeSelect = document.getElementById('codeIncidentSelect');
   const commentaire = document.getElementById('commentaireIncident').value.trim();
-  
+  const tempsImpact = document.getElementById('tempsImpactIncident').value;
+
   if (codeSelect.value) {
     tempCodeIncident = codeSelect.value;
     tempCommentaireIncident = commentaire;
+    tempTempsImpact = tempsImpact ? parseInt(tempsImpact) : 0;
     fermerModal('modalIncident');
   } else {
     alert('Veuillez sélectionner un code incident');
@@ -824,11 +879,16 @@ function validerIncident() {
 }
 
 // === REMPLIR LES SELECTS ===
-function remplirSelectsMachines() {
+function remplirSelectsMachines(typeMachineFiltre = null) {
   const select = document.getElementById('cdNumMachine');
   select.innerHTML = '<option value="">-- Sélectionner --</option>';
-  
-  dbData.machines.forEach(mc => {
+
+  // Filtrer les machines selon le type si un filtre est spécifié
+  const machinesFiltrees = typeMachineFiltre
+    ? dbData.machines.filter(mc => mc.type === typeMachineFiltre)
+    : dbData.machines;
+
+  machinesFiltrees.forEach(mc => {
     const option = new Option(`${mc.numero} (${mc.type})`, mc.id);
     select.add(option);
   });
@@ -905,19 +965,38 @@ function enregistrerCD() {
     return;
   }
   
-  if (qualite !== '1' && !tempCodeQualite) {
-    alert('Veuillez sélectionner un code Retour Archi pour NIV 2/NIV 3');
-    return;
-  }
-  
-  if (cqApres === 'Oui' && !tempCodeCQ) {
-    alert('Veuillez sélectionner un code CQ');
-    return;
-  }
-  
-  if (incident === 'Oui' && !tempCodeIncident) {
-    alert('Veuillez sélectionner un code incident');
-    return;
+  // Validation avec gestion des causes multiples
+  if (typeof multipleCausesManager !== 'undefined') {
+    if (qualite !== '1' && multipleCausesManager.selectedCodesQualite.length === 0) {
+      alert('Veuillez sélectionner au moins un code Retour Archi pour NIV 2/NIV 3');
+      return;
+    }
+
+    if (cqApres === 'Oui' && multipleCausesManager.selectedCodesCQ.length === 0) {
+      alert('Veuillez sélectionner au moins un code CQ');
+      return;
+    }
+
+    if (incident === 'Oui' && multipleCausesManager.selectedCodesIncident.length === 0) {
+      alert('Veuillez sélectionner au moins un code incident');
+      return;
+    }
+  } else {
+    // Fallback pour l'ancien système
+    if (qualite !== '1' && !tempCodeQualite) {
+      alert('Veuillez sélectionner un code Retour Archi pour NIV 2/NIV 3');
+      return;
+    }
+
+    if (cqApres === 'Oui' && !tempCodeCQ) {
+      alert('Veuillez sélectionner un code CQ');
+      return;
+    }
+
+    if (incident === 'Oui' && !tempCodeIncident) {
+      alert('Veuillez sélectionner un code incident');
+      return;
+    }
   }
   
   // Calculs
@@ -933,7 +1012,7 @@ function enregistrerCD() {
     selectedTags.push(tagElement.dataset.tagId);
   });
 
-  // Créer l'objet CD
+  // Créer l'objet CD avec gestion des causes multiples
   const nouveauCD = {
     id: currentEditingCD || 'cd_' + Date.now(),
     date: date,
@@ -949,12 +1028,8 @@ function enregistrerCD() {
     d1Reel: d1Reel,
     d1Net: d1Net,
     qualite: qualite,
-    codeQualite: tempCodeQualite,
     cqApres: cqApres,
-    codeCQ: tempCodeCQ,
     incident: incident,
-    codeIncident: tempCodeIncident,
-    commentaireIncident: tempCommentaireIncident,
     commentaire: commentaire,
     tempsStandard: tempsStandard,
     efficacite: Math.round(efficacite * 100) / 100,
@@ -964,6 +1039,19 @@ function enregistrerCD() {
     cache: false,
     tags: selectedTags
   };
+
+  // Ajouter les données des causes (multiples ou uniques)
+  if (typeof multipleCausesManager !== 'undefined') {
+    const causesData = multipleCausesManager.getDataForSave();
+    Object.assign(nouveauCD, causesData);
+  } else {
+    // Fallback pour l'ancien système
+    nouveauCD.codeQualite = tempCodeQualite;
+    nouveauCD.codeCQ = tempCodeCQ;
+    nouveauCD.codeIncident = tempCodeIncident;
+    nouveauCD.commentaireIncident = tempCommentaireIncident;
+    nouveauCD.tempsImpact = tempTempsImpact;
+  }
   
   if (currentEditingCD) {
     // Mode édition
@@ -1011,6 +1099,11 @@ function reinitialiserFormCD() {
   tempCodeIncident = null;
   tempCommentaireIncident = null;
   currentEditingCD = null;
+
+  // Réinitialiser le gestionnaire de causes multiples
+  if (typeof multipleCausesManager !== 'undefined') {
+    multipleCausesManager.reset();
+  }
 }
 
 // Afficher les tags dans le formulaire de saisie CD
@@ -1076,6 +1169,7 @@ function afficherHistorique(filteredData = null) {
     }
     
     const tr = document.createElement('tr');
+    tr.dataset.cdId = cd.id; // Ajouter l'ID pour les alertes visuelles
 
     // Gérer les CD cachés (grisés)
     if (cd.cache) {
@@ -1099,10 +1193,25 @@ function afficherHistorique(filteredData = null) {
     const incBadgeClass = cd.incident === 'Oui' ? 'status--warning' : 'status--info';
     const incLabel = cd.incident === 'Oui' ? 'OUI' : 'NON';
 
-    // Badge rouge pour CQ Après CD
+    // Badge rouge pour CQ Après CD - support multiple codes
     let cqContent = '-';
     if (cd.cqApres === 'Oui') {
-      if (cd.codeCQ) {
+      // Support pour causes multiples
+      if (cd.codesCQ && Array.isArray(cd.codesCQ) && cd.codesCQ.length > 0) {
+        const codesList = cd.codesCQ.map(id => {
+          const code = dbData.codesCQ.find(c => c.id === id);
+          return code ? `${code.code} - ${code.description}` : '?';
+        }).join('<br>');
+
+        cqContent = `
+          <div class="multiple-codes-tooltip">
+            <span class="status status--error" style="cursor: pointer;">CQ (${cd.codesCQ.length})</span>
+            <span class="tooltip-content">${codesList}</span>
+          </div>
+        `;
+      }
+      // Fallback pour l'ancien format (single code)
+      else if (cd.codeCQ) {
         const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
         if (codeCQ) {
           cqContent = `
@@ -1123,20 +1232,37 @@ function afficherHistorique(filteredData = null) {
       }
     }
     
-    // Tooltip pour Retour Archi avec info Niv 2/3
+    // Tooltip pour Retour Archi avec info Niv 2/3 - support multiple codes
     let qualiteContent = `<span class="status ${qualiteClass}">${qualiteLabel}</span>`;
-    if (cd.qualite !== '1' && cd.codeQualite) {
-      const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
-      if (codeQualite) {
+    if (cd.qualite !== '1') {
+      // Support pour causes multiples
+      if (cd.codesQualite && Array.isArray(cd.codesQualite) && cd.codesQualite.length > 0) {
+        const codesList = cd.codesQualite.map(id => {
+          const code = dbData.codesQualite.find(c => c.id === id);
+          return code ? `${code.code} - ${code.description}` : '?';
+        }).join('<br>');
+
         qualiteContent = `
-          <div class="tooltip">
-            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
-            <span class="tooltiptext">
-              <strong>Code Retour Archi:</strong><br>
-              ${codeQualite.code} - ${codeQualite.description}
-            </span>
+          <div class="multiple-codes-tooltip">
+            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel} (${cd.codesQualite.length})</span>
+            <span class="tooltip-content">${codesList}</span>
           </div>
         `;
+      }
+      // Fallback pour l'ancien format (single code)
+      else if (cd.codeQualite) {
+        const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
+        if (codeQualite) {
+          qualiteContent = `
+            <div class="tooltip">
+              <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
+              <span class="tooltiptext">
+                <strong>Code Retour Archi:</strong><br>
+                ${codeQualite.code} - ${codeQualite.description}
+              </span>
+            </div>
+          `;
+        }
       }
     }
     
@@ -1197,6 +1323,11 @@ function afficherHistorique(filteredData = null) {
     `;
     tbody.appendChild(tr);
   });
+
+  // Appliquer les alertes visuelles
+  if (typeof visualAlerts !== 'undefined') {
+    visualAlerts.applyAlertsToHistorique();
+  }
 }
 
 let currentModalCDId = null;
@@ -1205,13 +1336,47 @@ function voirDetailsCD(id) {
   currentModalCDId = id;
   const cd = dbData.cd.find(c => c.id === id);
   if (!cd) return;
-  
+
   const machine = dbData.machines.find(m => m.id === cd.numMachine);
   const op1 = dbData.operateurs.find(o => o.id === cd.conf1);
   const op2 = dbData.operateurs.find(o => o.id === cd.conf2);
-  const codeQualite = cd.codeQualite ? dbData.codesQualite.find(c => c.id === cd.codeQualite) : null;
-  const codeCQ = cd.codeCQ ? dbData.codesCQ.find(c => c.id === cd.codeCQ) : null;
-  const codeIncident = cd.codeIncident ? dbData.codesIncident.find(c => c.id === cd.codeIncident) : null;
+
+  // Support causes multiples
+  const codesQualite = [];
+  if (cd.codesQualite && Array.isArray(cd.codesQualite)) {
+    cd.codesQualite.forEach(codeId => {
+      const code = dbData.codesQualite.find(c => c.id === codeId);
+      if (code) codesQualite.push(code);
+    });
+  } else if (cd.codeQualite) {
+    const code = dbData.codesQualite.find(c => c.id === cd.codeQualite);
+    if (code) codesQualite.push(code);
+  }
+
+  const codesCQ = [];
+  if (cd.codesCQ && Array.isArray(cd.codesCQ)) {
+    cd.codesCQ.forEach(codeId => {
+      const code = dbData.codesCQ.find(c => c.id === codeId);
+      if (code) codesCQ.push(code);
+    });
+  } else if (cd.codeCQ) {
+    const code = dbData.codesCQ.find(c => c.id === cd.codeCQ);
+    if (code) codesCQ.push(code);
+  }
+
+  const codesIncident = [];
+  if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+    cd.codesIncident.forEach(codeId => {
+      const code = dbData.codesIncident.find(c => c.id === codeId);
+      if (code) codesIncident.push(code);
+    });
+  } else if (cd.codeIncident) {
+    const code = dbData.codesIncident.find(c => c.id === cd.codeIncident);
+    if (code) codesIncident.push(code);
+  }
+
+  // Tags
+  const tags = cd.tags ? cd.tags.map(tagId => dbData.tags.find(t => t.id === tagId)).filter(t => t) : [];
   
   let qualiteClass, qualiteLabel;
   if (cd.qualite === '1') {
@@ -1305,32 +1470,49 @@ function voirDetailsCD(id) {
     </div>
     
     <div class="modal-performance-section" style="background: linear-gradient(to right, rgba(252, 229, 0, 0.05), transparent); border-left: 4px solid #FCE500; padding-left: var(--space-16);">
-      <h4 style="color: #27509B; margin-bottom: var(--space-16);">Temporalité &amp; Durées</h4>
+      <h4 style="color: #27509B; margin-bottom: var(--space-16);">Temporalité &amp; Performance</h4>
       <div class="modal-performance-grid">
         <div class="modal-performance-item">
           <div class="modal-performance-label">D1 Réel</div>
           <div class="modal-performance-value" style="color: var(--michelin-blue);">${cd.d1Reel} h</div>
         </div>
-        
+
         <div class="modal-performance-item">
           <div class="modal-performance-label">D1 Net</div>
           <div class="modal-performance-value" style="color: var(--color-primary);">${cd.d1Net} h</div>
         </div>
-        
+
         <div class="modal-performance-item">
           <div class="modal-performance-label">Différence (Temps perdu)</div>
           <div class="modal-performance-value" style="color: ${(cd.d1Reel - cd.d1Net) > 1 ? 'var(--color-error)' : 'var(--color-success)'};">${(cd.d1Reel - cd.d1Net).toFixed(1)} h</div>
         </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Efficacité</div>
+          <div class="modal-performance-value">${cd.efficacite ? cd.efficacite.toFixed(1) : 0}%</div>
+        </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Performance Globale</div>
+          <div class="modal-performance-value" style="color: ${cd.performance >= 80 ? 'var(--color-success)' : cd.performance >= 50 ? 'var(--color-warning)' : 'var(--color-error)'}; font-weight: 700;">${cd.performance ? cd.performance.toFixed(1) : 0}%</div>
+        </div>
+
+        <div class="modal-performance-item">
+          <div class="modal-performance-label">Temps Standard</div>
+          <div class="modal-performance-value">${cd.tempsStandard || 8} h</div>
+        </div>
       </div>
     </div>
     
-    ${codeQualite ? `
+    ${codesQualite.length > 0 ? `
       <div class="modal-codes-section">
-        <h4>Code Retour Archi</h4>
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code :</div>
-          <div class="modal-code-value"><strong>${codeQualite.code}</strong> - ${codeQualite.description}</div>
-        </div>
+        <h4>Codes Retour Archi ${codesQualite.length > 1 ? `(${codesQualite.length})` : ''}</h4>
+        ${codesQualite.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')}
       </div>
     ` : ''}
     
@@ -1342,12 +1524,14 @@ function voirDetailsCD(id) {
           <span class="status ${cd.cqApres === 'Oui' ? 'status--success' : 'status--info'}" style="font-weight: var(--font-weight-bold); font-size: var(--font-size-base);">${cd.cqApres === 'Oui' ? 'OUI' : 'NON'}</span>
         </div>
       </div>
-      ${codeCQ ? `
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code CQ :</div>
-          <div class="modal-code-value"><strong>${codeCQ.code}</strong> - ${codeCQ.description}</div>
-        </div>
-      ` : `
+      ${codesCQ.length > 0 ?
+        codesCQ.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code CQ :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')
+      : `
         <div class="modal-code-item">
           <div class="modal-code-label"></div>
           <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucun CQ</div>
@@ -1363,21 +1547,23 @@ function voirDetailsCD(id) {
           <span class="status ${cd.incident === 'Oui' ? 'status--warning' : 'status--info'}" style="font-weight: var(--font-weight-bold); font-size: var(--font-size-base);">${cd.incident === 'Oui' ? 'OUI' : 'NON'}</span>
         </div>
       </div>
-      ${codeIncident ? `
-        <div class="modal-code-item">
-          <div class="modal-code-label">Code Incident :</div>
-          <div class="modal-code-value"><strong>${codeIncident.code}</strong> - ${codeIncident.description}</div>
-        </div>
-      ` : `
+      ${codesIncident.length > 0 ?
+        codesIncident.map(code => `
+          <div class="modal-code-item">
+            <div class="modal-code-label">Code Incident :</div>
+            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
+          </div>
+        `).join('')
+      : `
         <div class="modal-code-item">
           <div class="modal-code-label"></div>
           <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucun incident</div>
         </div>
       `}
-      ${cd.commentaireIncident ? `
+      ${cd.commentaireIncident || (cd.commentsIncident && cd.commentsIncident.global) ? `
         <div class="modal-code-item">
           <div class="modal-code-label">Commentaire :</div>
-          <div class="modal-code-value">${cd.commentaireIncident}</div>
+          <div class="modal-code-value">${cd.commentaireIncident || cd.commentsIncident.global}</div>
         </div>
       ` : ''}
     </div>
@@ -1387,6 +1573,19 @@ function voirDetailsCD(id) {
         <h4>Commentaire Général</h4>
         <div class="modal-code-item">
           <div class="modal-code-value">${cd.commentaire}</div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${tags.length > 0 ? `
+      <div class="modal-codes-section">
+        <h4>🏷️ Tags</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+          ${tags.map(tag => `
+            <span style="display: inline-block; padding: 6px 12px; border-radius: 12px; background: ${tag.couleur}; color: white; font-size: 13px; font-weight: 500;">
+              ${tag.nom}
+            </span>
+          `).join('')}
         </div>
       </div>
     ` : ''}
@@ -1400,11 +1599,191 @@ function voirDetailsCD(id) {
   
   document.getElementById('detailsCDContainer').innerHTML = content;
   ouvrirModal('modalDetailsCD');
-  
+
   // Fermeture au clic sur l'overlay
   document.getElementById('modalDetailsCD').onclick = function(e) {
     if (e.target === this) {
       fermerModal('modalDetailsCD');
+    }
+  };
+}
+
+function voirDetailsMachine(machineId) {
+  const machine = dbData.machines.find(m => m.id === machineId);
+  if (!machine) return;
+
+  const cdActifs = dbData.cd.filter(cd => !cd.cache && cd.numMachine === machineId);
+
+  if (cdActifs.length === 0) {
+    alert('Aucun CD trouvé pour cette machine');
+    return;
+  }
+
+  // Calculs
+  const nbCD = cdActifs.length;
+  const perfMoyenne = (cdActifs.reduce((sum, cd) => sum + cd.performance, 0) / nbCD).toFixed(1);
+  const efficaciteMoyenne = (cdActifs.reduce((sum, cd) => sum + cd.efficacite, 0) / nbCD).toFixed(1);
+  const d1Moyen = (cdActifs.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD).toFixed(1);
+  const d1NetMoyen = (cdActifs.reduce((sum, cd) => sum + cd.d1Net, 0) / nbCD).toFixed(1);
+
+  const niv1 = cdActifs.filter(cd => cd.qualite === '1').length;
+  const niv2 = cdActifs.filter(cd => cd.qualite === '2').length;
+  const niv2CC = cdActifs.filter(cd => cd.qualite === '2_cc').length;
+  const niv3 = cdActifs.filter(cd => cd.qualite === '3').length;
+
+  const pctNiv1 = Math.round((niv1 / nbCD) * 100);
+  const pctNiv2 = Math.round((niv2 / nbCD) * 100);
+  const pctNiv2CC = Math.round((niv2CC / nbCD) * 100);
+  const pctNiv3 = Math.round((niv3 / nbCD) * 100);
+
+  const anomalies = cdActifs.filter(cd => cd.anomalie).length;
+  const incidents = cdActifs.filter(cd => cd.incident === 'Oui').length;
+  const cqOui = cdActifs.filter(cd => cd.cqApres === 'Oui').length;
+
+  // Trouver les CD les plus récents
+  const cdRecents = [...cdActifs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+  const content = `
+    <div class="modal-header" style="background: linear-gradient(135deg, #27509B 0%, #1a3a6e 100%); color: white; padding: var(--space-24); border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+      <div class="modal-details-title-section">
+        <div class="modal-details-title">
+          <h3 style="color: white; margin: 0 0 var(--space-8) 0; font-size: var(--font-size-2xl);">Détails Machine ${machine.numero}</h3>
+          <div style="color: rgba(255,255,255,0.9); font-size: var(--font-size-lg);">${machine.type}</div>
+        </div>
+        <button class="modal-close-btn" onclick="fermerModal('modalDetailsMachine')" style="color: white; opacity: 0.9;">&times;</button>
+      </div>
+    </div>
+
+    <div class="modal-content-scrollable">
+      <!-- KPIs Machine -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+        <div style="background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Performance</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${perfMoyenne}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #1976D2 0%, #0D47A1 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Efficacité</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${efficaciteMoyenne}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">NIV 1</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${pctNiv1}%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%); color: white; padding: var(--space-16); border-radius: var(--radius-lg); text-align: center;">
+          <div style="font-size: var(--font-size-sm); opacity: 0.9; margin-bottom: var(--space-4);">Total CD</div>
+          <div style="font-size: var(--font-size-3xl); font-weight: 700;">${nbCD}</div>
+        </div>
+      </div>
+
+      <!-- Statistiques détaillées -->
+      <div class="modal-codes-section">
+        <h4>📊 Statistiques Globales</h4>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-12);">
+          <div class="modal-code-item">
+            <div class="modal-code-label">D1 Moyen</div>
+            <div class="modal-code-value">${d1Moyen}h</div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">D1 Net Moyen</div>
+            <div class="modal-code-value">${d1NetMoyen}h</div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Anomalies</div>
+            <div class="modal-code-value"><span class="status ${anomalies > 0 ? 'status--error' : 'status--success'}">${anomalies}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Incidents</div>
+            <div class="modal-code-value"><span class="status ${incidents > 0 ? 'status--warning' : 'status--info'}">${incidents}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">CQ Après CD</div>
+            <div class="modal-code-value"><span class="status ${cqOui > 0 ? 'status--error' : 'status--success'}">${cqOui}</span></div>
+          </div>
+          <div class="modal-code-item">
+            <div class="modal-code-label">Taux anomalies</div>
+            <div class="modal-code-value">${Math.round((anomalies / nbCD) * 100)}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Répartition Qualité -->
+      <div class="modal-codes-section">
+        <h4>🎯 Répartition Qualité</h4>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-8);">
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #2E7D32;">${niv1}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 1</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv1}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #F57C00;">${niv2}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 2</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv2}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #C62828;">${niv2CC}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 2 CC</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv2CC}%</div>
+          </div>
+          <div style="text-align: center; padding: var(--space-12); background: var(--color-surface); border-radius: var(--radius-base);">
+            <div style="font-size: var(--font-size-2xl); font-weight: 700; color: #8B0000;">${niv3}</div>
+            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">NIV 3</div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-secondary);">${pctNiv3}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CD Récents -->
+      <div class="modal-codes-section">
+        <h4>📋 Derniers CD (${cdRecents.length})</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>CAI</th>
+                <th>Opérateurs</th>
+                <th>Performance</th>
+                <th>Qualité</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cdRecents.map(cd => {
+                const op1 = dbData.operateurs.find(o => o.id === cd.conf1);
+                const op2 = dbData.operateurs.find(o => o.id === cd.conf2);
+                let qualiteLabel, qualiteClass;
+                if (cd.qualite === '1') { qualiteClass = 'status--success'; qualiteLabel = 'NIV 1'; }
+                else if (cd.qualite === '2') { qualiteClass = 'status--warning'; qualiteLabel = 'NIV 2'; }
+                else if (cd.qualite === '2_cc') { qualiteClass = 'status--error'; qualiteLabel = 'NIV 2 CC'; }
+                else { qualiteClass = 'status--error'; qualiteLabel = 'NIV 3'; }
+                return `
+                  <tr style="cursor: pointer;" onclick="fermerModal('modalDetailsMachine'); voirDetailsCD('${cd.id}')">
+                    <td>${new Date(cd.date).toLocaleDateString('fr-FR')}</td>
+                    <td>${cd.cai}</td>
+                    <td>${op1?.nom || '?'} / ${op2?.nom || '?'}</td>
+                    <td>${cd.performance.toFixed(1)}%</td>
+                    <td><span class="status ${qualiteClass}">${qualiteLabel}</span></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn--secondary" onclick="fermerModal('modalDetailsMachine')">Fermer</button>
+    </div>
+  `;
+
+  document.getElementById('detailsMachineContainer').innerHTML = content;
+  ouvrirModal('modalDetailsMachine');
+
+  // Fermeture au clic sur l'overlay
+  document.getElementById('modalDetailsMachine').onclick = function(e) {
+    if (e.target === this) {
+      fermerModal('modalDetailsMachine');
     }
   };
 }
@@ -1415,54 +1794,67 @@ function editerCD(id) {
 
   currentEditingCD = id;
 
-  // Pré-remplir le formulaire
-  document.getElementById('cdDate').value = cd.date;
-  document.getElementById('cdHeure').value = cd.heure;
-  document.getElementById('cdTypeProd').value = cd.typeProd;
-  document.getElementById('cdTypeMachine').value = cd.typeMachine;
-  document.getElementById('cdNumMachine').value = cd.numMachine;
-  document.getElementById('cdTypeCD').value = cd.typeCD;
-  document.getElementById('cdCAI').value = cd.cai;
-  document.getElementById('cdDimension').value = cd.dimension;
-  document.getElementById('cdConf1').value = cd.conf1;
-  document.getElementById('cdConf2').value = cd.conf2;
-  document.getElementById('cdD1Reel').value = cd.d1Reel;
-  document.getElementById('cdD1Net').value = cd.d1Net;
-  document.getElementById('cdQualite').value = cd.qualite;
-  document.getElementById('cdCQApres').value = cd.cqApres;
-  document.getElementById('cdIncident').value = cd.incident;
-  document.getElementById('cdCommentaire').value = cd.commentaire || '';
-
-  tempCodeQualite = cd.codeQualite;
-  tempCodeCQ = cd.codeCQ;
-  tempCodeIncident = cd.codeIncident;
-  tempCommentaireIncident = cd.commentaireIncident;
-
-  // Désactiver tous les badges d'abord
-  document.querySelectorAll('.badge-btn').forEach(btn => {
-    btn.classList.remove('active');
-  });
-
-  // Activer les badges appropriés en fonction des valeurs des inputs cachés
-  // Pour chaque groupe de badges, activer le bon badge
-  document.querySelectorAll('.badge-group').forEach(group => {
-    const hiddenInput = group.nextElementSibling;
-    if (!hiddenInput || hiddenInput.tagName !== 'INPUT' || hiddenInput.type !== 'hidden') return;
-
-    const currentValue = hiddenInput.value;
-    if (!currentValue) return;
-
-    // Trouver et activer le badge correspondant dans ce groupe
-    group.querySelectorAll('.badge-btn').forEach(btn => {
-      if (btn.getAttribute('data-value') === currentValue) {
-        btn.classList.add('active');
-      }
-    });
-  });
-
-  // Basculer vers l'onglet de saisie
+  // Basculer vers l'onglet de saisie AVANT de remplir les champs
   activerOnglet('saisir');
-  alert('Mode édition activé. Modifiez les champs et cliquez sur "Enregistrer CD".');
+
+  // S'assurer que les selects sont remplis avec les bonnes options
+  remplirSelectsMachines();
+  remplirSelectsOperateurs();
+
+  // Utiliser setTimeout pour s'assurer que les selects sont bien remplis avant de set les valeurs
+  setTimeout(() => {
+    // Pré-remplir le formulaire
+    document.getElementById('cdDate').value = cd.date;
+    document.getElementById('cdHeure').value = cd.heure;
+    document.getElementById('cdTypeProd').value = cd.typeProd;
+    document.getElementById('cdTypeMachine').value = cd.typeMachine;
+    document.getElementById('cdNumMachine').value = cd.numMachine;
+    document.getElementById('cdTypeCD').value = cd.typeCD;
+    document.getElementById('cdCAI').value = cd.cai;
+    document.getElementById('cdDimension').value = cd.dimension;
+    document.getElementById('cdConf1').value = cd.conf1;
+    document.getElementById('cdConf2').value = cd.conf2;
+    document.getElementById('cdD1Reel').value = cd.d1Reel;
+    document.getElementById('cdD1Net').value = cd.d1Net;
+    document.getElementById('cdQualite').value = cd.qualite;
+    document.getElementById('cdCQApres').value = cd.cqApres;
+    document.getElementById('cdIncident').value = cd.incident;
+    document.getElementById('cdCommentaire').value = cd.commentaire || '';
+
+    tempCodeQualite = cd.codeQualite;
+    tempCodeCQ = cd.codeCQ;
+    tempCodeIncident = cd.codeIncident;
+    tempCommentaireIncident = cd.commentaireIncident;
+
+    // Charger les causes multiples si disponible
+    if (typeof multipleCausesManager !== 'undefined') {
+      multipleCausesManager.loadFromCD(cd);
+    }
+
+    // Désactiver tous les badges d'abord
+    document.querySelectorAll('.badge-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    // Activer les badges appropriés en fonction des valeurs des inputs cachés
+    // Pour chaque groupe de badges, activer le bon badge
+    document.querySelectorAll('.badge-group').forEach(group => {
+      const hiddenInput = group.nextElementSibling;
+      if (!hiddenInput || hiddenInput.tagName !== 'INPUT' || hiddenInput.type !== 'hidden') return;
+
+      const currentValue = hiddenInput.value;
+      if (!currentValue) return;
+
+      // Trouver et activer le badge correspondant dans ce groupe
+      group.querySelectorAll('.badge-btn').forEach(btn => {
+        if (btn.getAttribute('data-value') === currentValue) {
+          btn.classList.add('active');
+        }
+      });
+    });
+
+    alert('Mode édition activé. Modifiez les champs et cliquez sur "Enregistrer CD".');
+  }, 50);
 }
 
 function supprimerCD(id) {
@@ -1603,6 +1995,91 @@ function resetFiltres() {
   afficherHistorique();
 }
 
+// === VUE MANAGER ===
+function afficherVueManager(vue) {
+  if (vue === 'operateurs') {
+    document.getElementById('managerOperateursContent').style.display = 'block';
+    document.getElementById('managerBinomesContent').style.display = 'none';
+    document.getElementById('btnVueOperateurs').className = 'btn btn--primary';
+    document.getElementById('btnVueBinomes').className = 'btn btn--secondary';
+    afficherManager();
+  } else if (vue === 'binomes') {
+    document.getElementById('managerOperateursContent').style.display = 'none';
+    document.getElementById('managerBinomesContent').style.display = 'block';
+    document.getElementById('btnVueOperateurs').className = 'btn btn--secondary';
+    document.getElementById('btnVueBinomes').className = 'btn btn--primary';
+    afficherBestTeams();
+  }
+}
+
+function afficherManager() {
+  const cdData = getFilteredCD({ excludeCached: true });
+  const container = document.getElementById('managerOperateursContent');
+
+  if (!container) return;
+
+  if (cdData.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
+    return;
+  }
+
+  // Calculer les stats par opérateur
+  const operateurStats = {};
+  cdData.forEach(cd => {
+    [cd.conf1, cd.conf2].forEach(opId => {
+      if (!operateurStats[opId]) {
+        operateurStats[opId] = {
+          opId: opId,
+          cd: [],
+          totalPerf: 0,
+          niv1: 0
+        };
+      }
+      operateurStats[opId].cd.push(cd);
+      operateurStats[opId].totalPerf += cd.performance;
+      if (cd.qualite === '1') operateurStats[opId].niv1++;
+    });
+  });
+
+  // Convertir en tableau et trier
+  const operateurs = Object.values(operateurStats).map(stat => {
+    const op = dbData.operateurs.find(o => o.id === stat.opId);
+    return {
+      nom: op ? op.nom : 'Inconnu',
+      nbCD: stat.cd.length,
+      perfMoyenne: (stat.totalPerf / stat.cd.length).toFixed(1),
+      tauxNiv1: ((stat.niv1 / stat.cd.length) * 100).toFixed(1)
+    };
+  }).sort((a, b) => b.perfMoyenne - a.perfMoyenne);
+
+  // Générer le HTML
+  let html = '<div class="table-container"><table><thead><tr>';
+  html += '<th>Rang</th><th>Opérateur</th><th>Performance Moyenne</th><th>Taux NIV 1</th><th>Nombre de CD</th>';
+  html += '</tr></thead><tbody>';
+
+  operateurs.forEach((op, index) => {
+    const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+    html += `<tr class="${rankClass}">`;
+    html += `<td>${medal} ${index + 1}</td>`;
+    html += `<td><strong>${op.nom}</strong></td>`;
+    html += `<td>${op.perfMoyenne}%</td>`;
+    html += `<td>${op.tauxNiv1}%</td>`;
+    html += `<td>${op.nbCD}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+function afficherBestTeams() {
+  const cdData = getFilteredCD({ excludeCached: true });
+  if (typeof afficherMeilleursBinomes === 'function') {
+    afficherMeilleursBinomes(cdData);
+  }
+}
+
 // === FEEDBACK ===
 function toggleCacheCD(cdId) {
   const cd = dbData.cd.find(c => c.id === cdId);
@@ -1618,11 +2095,6 @@ function toggleCacheCD(cdId) {
   // Rafraîchir toutes les vues
   afficherHistorique();
   afficherFeedback();
-}
-
-function toggleShowHiddenCD() {
-  // Fonction conservée pour compatibilité mais ne fait plus rien
-  // Les CD cachés sont toujours affichés (grisés)
 }
 
 function afficherFeedback() {
@@ -1684,15 +2156,24 @@ function afficherFeedback() {
     feedbackSection.style.removeProperty('position');
   }
   const cdOperateurAll = dbData.cd.filter(cd => cd.conf1 === opId || cd.conf2 === opId);
-  
+
   // Pour les stats : EXCLURE les CD cachés
   const cdOperateur = cdOperateurAll.filter(cd => !cd.cache);
-  
+
+  // Calculer PNC et PNS pour cet opérateur spécifique
+  const cdActifs = dbData.cd.filter(cd => !cd.cache);
+  let nbPNC = 0;
+  let nbPNS = 0;
+  cdActifs.forEach(cd => {
+    if (cd.conf1 === opId) nbPNC++;
+    if (cd.conf2 === opId) nbPNS++;
+  });
+
   if (cdOperateur.length === 0) {
     document.getElementById('feedbackContent').innerHTML = '<div class="empty-state"><p>Aucun CD trouvé pour cet opérateur</p></div>';
     return;
   }
-  
+
   // Calculs
   const nbCD = cdOperateur.length;
   const d1Moyen = cdOperateur.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD;
@@ -1784,6 +2265,14 @@ function afficherFeedback() {
         <h4>Anomalies</h4>
         <div class="value" style="color: ${nbAnomalies > 0 ? 'var(--color-error)' : 'var(--color-success)'}">${nbAnomalies}</div>
       </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%); color: white;">
+        <h4 style="color: white;">PNC (CONF1)</h4>
+        <div class="value" style="color: white;">${nbPNC}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%); color: white;">
+        <h4 style="color: white;">PNS (CONF2)</h4>
+        <div class="value" style="color: white;">${nbPNS}</div>
+      </div>
     </div>
 
     <div class="feedback-section" style="position: relative; z-index: 1;">
@@ -1873,7 +2362,7 @@ function afficherFeedback() {
               <th>D1 Réel</th>
               <th>D1 Net</th>
               <th>Qualité</th>
-              <th>Performance</th>
+              <th>Perf</th>
               <th>CQ Après CD</th>
               <th>Incident</th>
               <th>Anomalie</th>
@@ -1951,9 +2440,13 @@ function afficherFeedback() {
                 rowClass = ' class="anomalie"';
               }
               
+              // Formatter la date en format court (DD/MM/YY)
+              const dateObj = new Date(cd.date);
+              const dateFormatee = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getFullYear()).slice(-2)}`;
+
               return `
                 <tr${rowClass}${rowStyle} style="${rowStyle ? rowStyle.replace('style="', '').replace('"', '') + ' cursor: pointer;' : 'cursor: pointer;'}" onclick="voirDetailsCD('${cd.id}')">
-                  <td>${cd.date}</td>
+                  <td style="white-space: nowrap; font-size: 13px;">${dateFormatee}</td>
                   <td>${machine ? machine.numero : 'N/A'}</td>
                   <td>${cd.cai}</td>
                   <td>${cd.dimension}</td>
@@ -2260,13 +2753,18 @@ function afficherAccueil() {
     </div>
   `;
   document.getElementById('kpiContainer').innerHTML = kpiHTML;
-  
+
+  // Statistiques comparatives
+  if (typeof afficherStatsComparatives === 'function') {
+    afficherStatsComparatives();
+  }
+
   // Pie Chart: Répartition Retour Archi
   afficherPieChartRetourArchi(cdActifs);
-  
+
   // Bar Chart: Type Machine
   afficherBarChartMachine(cdActifs);
-  
+
   // Bar Chart: Type CD
   afficherBarChartTypeCD(cdActifs);
 }
@@ -2568,103 +3066,6 @@ function afficherStats(){
   document.getElementById('statsContent').innerHTML = html;
 }
 
-// === VUE MANAGER TAB ===
-function afficherVueManager() {
-  // patched afficherVueManager: utilize globally filtered list
-  const cdBase = getFilteredCD({ excludeCached:false });
-
-  const cdActifs = dbData.cd.filter(cd => !cd.cache);
-  
-  // Calculer stats par opérateur
-  const opStats = {};
-  dbData.operateurs.forEach(op => {
-    const cdOp = cdActifs.filter(cd => cd.conf1 === op.id || cd.conf2 === op.id);
-    if (cdOp.length > 0) {
-      const nbCD = cdOp.length;
-      const perfMoyenne = cdOp.reduce((sum, cd) => sum + cd.performance, 0) / nbCD;
-      const efficaciteMoyenne = cdOp.reduce((sum, cd) => sum + cd.efficacite, 0) / nbCD;
-      const d1Moyen = cdOp.reduce((sum, cd) => sum + cd.d1Reel, 0) / nbCD;
-      const niv1 = cdOp.filter(cd => cd.qualite === '1').length;
-      const incidents = cdOp.filter(cd => cd.incident === 'Oui').length;
-      
-      opStats[op.id] = {
-        nom: op.nom,
-        nbCD: nbCD,
-        performance: Math.round(perfMoyenne * 100) / 100,
-        efficacite: Math.round(efficaciteMoyenne * 100) / 100,
-        tauxNiv1: Math.round((niv1 / nbCD) * 100),
-        tauxIncidents: Math.round((incidents / nbCD) * 100),
-        d1Moyen: Math.round(d1Moyen * 10) / 10
-      };
-    }
-  });
-  
-  const opArray = Object.values(opStats);
-  
-  if (opArray.length === 0) {
-    document.getElementById('managerContent').innerHTML = '<div class="empty-state"><p>Aucune donnée disponible</p></div>';
-    return;
-  }
-  
-  let html = '';
-  
-  // Classement 1: Performance
-  const opByPerf = [...opArray].sort((a, b) => b.performance - a.performance);
-  html += genererClassementOperateurs('Performance moyenne', opByPerf, 'performance', '%');
-  
-  // Classement 2: Efficacité
-  const opByEff = [...opArray].sort((a, b) => b.efficacite - a.efficacite);
-  html += genererClassementOperateurs('Efficacité moyenne', opByEff, 'efficacite', '%');
-  
-  // Classement 3: Taux NIV 1
-  const opByNiv1 = [...opArray].sort((a, b) => b.tauxNiv1 - a.tauxNiv1);
-  html += genererClassementOperateurs('Taux NIV 1', opByNiv1, 'tauxNiv1', '%');
-  
-  // Classement 4: Taux Incidents (inverse: moins = mieux)
-  const opByInc = [...opArray].sort((a, b) => a.tauxIncidents - b.tauxIncidents);
-  html += genererClassementOperateurs('Taux incidents (moins = mieux)', opByInc, 'tauxIncidents', '%');
-  
-  // Classement 5: D1 Moyen (inverse: moins = mieux)
-  const opByD1 = [...opArray].sort((a, b) => a.d1Moyen - b.d1Moyen);
-  html += genererClassementOperateurs('D1 moyen (moins = mieux)', opByD1, 'd1Moyen', 'h');
-  
-  document.getElementById('managerContent').innerHTML = html;
-}
-
-function genererClassementOperateurs(titre, opArray, metricKey, unit) {
-  return `
-    <div class="ranking-table">
-      <h4>${titre}</h4>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Rang</th>
-              <th>Nom</th>
-              <th>${titre}</th>
-              <th>Nb CD</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${opArray.map((op, index) => {
-              const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
-              const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
-              return `
-                <tr class="${rankClass}">
-                  <td>${medal} ${index + 1}</td>
-                  <td><strong>${op.nom}</strong></td>
-                  <td>${op[metricKey]}${unit}</td>
-                  <td>${op.nbCD}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
 // === MACHINE TAB ===
 function afficherMachinePerformance() {
   // patched afficherMachinePerformance: utilize globally filtered list
@@ -2730,7 +3131,7 @@ function afficherMachinePerformance() {
               const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : (index === 2 ? 'rank-3' : ''));
               const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
               return `
-                <tr class="${rankClass}">
+                <tr class="${rankClass}" style="cursor: pointer;" onclick="voirDetailsMachine('${machineId}')">
                   <td>${medal} ${index + 1}</td>
                   <td><strong>${stats.numero}</strong></td>
                   <td>${stats.type}</td>
@@ -3683,4 +4084,441 @@ function afficherDetailsCQ(cqId) {
   `;
   
   document.getElementById('qualiteDetailSection').innerHTML = html;
+}
+// === ANALYSE ===
+function afficherAnalyse() {
+  afficherAnalyseIncidents();
+  afficherAnalyseCQ();
+  afficherAnalyseRetourArchi();
+}
+
+function afficherAnalyseIncidents() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdAvecIncident = cdActifs.filter(cd => cd.incident === 'Oui');
+  
+  if (cdAvecIncident.length === 0) {
+    document.getElementById('analyseIncidentsContent').innerHTML = '<div class="empty-state"><p>Aucun incident enregistré</p></div>';
+    return;
+  }
+
+  // Statistiques globales
+  const nbIncidents = cdAvecIncident.length;
+  const tauxIncidents = ((nbIncidents / cdActifs.length) * 100).toFixed(1);
+  
+  // Calcul temps d'impact total
+  let tempsImpactTotal = 0;
+  cdAvecIncident.forEach(cd => {
+    if (cd.tempsImpact) {
+      // Ancien système : temps global
+      tempsImpactTotal += cd.tempsImpact;
+    } else if (cd.tempsImpactIncident) {
+      // Nouveau système : temps individuels par incident
+      // Additionner tous les temps individuels
+      Object.values(cd.tempsImpactIncident).forEach(temps => {
+        if (typeof temps === 'number') {
+          tempsImpactTotal += temps;
+        }
+      });
+    }
+  });
+  
+  const tempsImpactMoyen = nbIncidents > 0 ? (tempsImpactTotal / nbIncidents).toFixed(1) : 0;
+
+  // Analyse par code incident
+  const incidentsParCode = {};
+  cdAvecIncident.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+      cd.codesIncident.forEach(codeId => {
+        if (!incidentsParCode[codeId]) {
+          incidentsParCode[codeId] = { count: 0, cds: [], tempsImpact: 0 };
+        }
+        incidentsParCode[codeId].count++;
+        incidentsParCode[codeId].cds.push(cd);
+      });
+    } else if (cd.codeIncident) {
+      // Ancien système
+      if (!incidentsParCode[cd.codeIncident]) {
+        incidentsParCode[cd.codeIncident] = { count: 0, cds: [], tempsImpact: 0 };
+      }
+      incidentsParCode[cd.codeIncident].count++;
+      incidentsParCode[cd.codeIncident].cds.push(cd);
+    }
+    
+    // Temps d'impact par code incident
+    if (cd.codesIncident && Array.isArray(cd.codesIncident)) {
+      // Nouveau système : temps individuels par incident
+      cd.codesIncident.forEach(codeId => {
+        if (incidentsParCode[codeId]) {
+          const tempsIndividuel = (cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]) || 0;
+          incidentsParCode[codeId].tempsImpact += tempsIndividuel;
+        }
+      });
+    } else if (cd.codeIncident && incidentsParCode[cd.codeIncident]) {
+      // Ancien système : temps global
+      const impact = cd.tempsImpact || 0;
+      incidentsParCode[cd.codeIncident].tempsImpact += impact;
+    }
+  });
+
+  // Top incidents
+  const topIncidents = Object.entries(incidentsParCode)
+    .map(([codeId, data]) => {
+      const code = dbData.codesIncident.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        tempsImpact: data.tempsImpact,
+        pct: ((data.count / nbIncidents) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Analyse par machine
+  const incidentsParMachine = {};
+  cdAvecIncident.forEach(cd => {
+    if (!incidentsParMachine[cd.numMachine]) {
+      incidentsParMachine[cd.numMachine] = 0;
+    }
+    incidentsParMachine[cd.numMachine]++;
+  });
+
+  const topMachines = Object.entries(incidentsParMachine)
+    .map(([machineId, count]) => {
+      const machine = dbData.machines.find(m => m.id === machineId);
+      return {
+        machine: machine ? machine.numero : 'N/A',
+        type: machine ? machine.type : 'N/A',
+        count: count
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // HTML
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #D32F2F 0%, #B71C1C 100%); color: white;">
+        <h4 style="color: white;">Total Incidents</h4>
+        <div class="value" style="color: white;">${nbIncidents}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); color: white;">
+        <h4 style="color: white;">Taux d'Incidents</h4>
+        <div class="value" style="color: white;">${tauxIncidents}<span class="unit">%</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%); color: white;">
+        <h4 style="color: white;">Temps Impact Total</h4>
+        <div class="value" style="color: white;">${tempsImpactTotal}<span class="unit">min</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #1976D2 0%, #0D47A1 100%); color: white;">
+        <h4 style="color: white;">Temps Impact Moyen</h4>
+        <div class="value" style="color: white;">${tempsImpactMoyen}<span class="unit">min</span></div>
+      </div>
+    </div>
+
+    <div class="section-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24);">
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top Codes Incidents</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+                <th>Occurrences</th>
+                <th>Impact (min)</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topIncidents.map(inc => `
+                <tr>
+                  <td><strong>${inc.code}</strong></td>
+                  <td>${inc.description}</td>
+                  <td>${inc.count}</td>
+                  <td>${inc.tempsImpact}</td>
+                  <td>${inc.pct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec Incidents</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Machine</th>
+                <th>Type</th>
+                <th>Nb Incidents</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topMachines.map(m => `
+                <tr>
+                  <td><strong>${m.machine}</strong></td>
+                  <td>${m.type}</td>
+                  <td>${m.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseIncidentsContent').innerHTML = html;
+}
+
+function afficherAnalyseCQ() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdAvecCQ = cdActifs.filter(cd => cd.cqApres === 'Oui');
+  
+  if (cdAvecCQ.length === 0) {
+    document.getElementById('analyseCQContent').innerHTML = '<div class="empty-state"><p>Aucun CQ après CD enregistré</p></div>';
+    return;
+  }
+
+  const nbCQ = cdAvecCQ.length;
+  const tauxCQ = ((nbCQ / cdActifs.length) * 100).toFixed(1);
+  
+  // Performance moyenne des CD avec CQ
+  const perfMoyenne = (cdAvecCQ.reduce((sum, cd) => sum + cd.performance, 0) / nbCQ).toFixed(1);
+  
+  // Analyse par code CQ
+  const cqParCode = {};
+  cdAvecCQ.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesCQ && Array.isArray(cd.codesCQ)) {
+      cd.codesCQ.forEach(codeId => {
+        if (!cqParCode[codeId]) {
+          cqParCode[codeId] = { count: 0, cds: [] };
+        }
+        cqParCode[codeId].count++;
+        cqParCode[codeId].cds.push(cd);
+      });
+    } else if (cd.codeCQ) {
+      // Ancien système
+      if (!cqParCode[cd.codeCQ]) {
+        cqParCode[cd.codeCQ] = { count: 0, cds: [] };
+      }
+      cqParCode[cd.codeCQ].count++;
+      cqParCode[cd.codeCQ].cds.push(cd);
+    }
+  });
+
+  const topCQ = Object.entries(cqParCode)
+    .map(([codeId, data]) => {
+      const code = dbData.codesCQ.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        pct: ((data.count / nbCQ) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  // Analyse par machine
+  const cqParMachine = {};
+  cdAvecCQ.forEach(cd => {
+    if (!cqParMachine[cd.numMachine]) {
+      cqParMachine[cd.numMachine] = 0;
+    }
+    cqParMachine[cd.numMachine]++;
+  });
+
+  const topMachinesCQ = Object.entries(cqParMachine)
+    .map(([machineId, count]) => {
+      const machine = dbData.machines.find(m => m.id === machineId);
+      return {
+        machine: machine ? machine.numero : 'N/A',
+        type: machine ? machine.type : 'N/A',
+        count: count
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #EF6C00 0%, #E65100 100%); color: white;">
+        <h4 style="color: white;">Total CQ</h4>
+        <div class="value" style="color: white;">${nbCQ}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #F57C00 0%, #EF6C00 100%); color: white;">
+        <h4 style="color: white;">Taux de CQ</h4>
+        <div class="value" style="color: white;">${tauxCQ}<span class="unit">%</span></div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%); color: white;">
+        <h4 style="color: white;">Performance Moyenne</h4>
+        <div class="value" style="color: white;">${perfMoyenne}<span class="unit">%</span></div>
+      </div>
+    </div>
+
+    <div class="section-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24);">
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top Codes CQ</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+                <th>Occurrences</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topCQ.map(cq => `
+                <tr>
+                  <td><strong>${cq.code}</strong></td>
+                  <td>${cq.description}</td>
+                  <td>${cq.count}</td>
+                  <td>${cq.pct}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec CQ</h4>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Machine</th>
+                <th>Type</th>
+                <th>Nb CQ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topMachinesCQ.map(m => `
+                <tr>
+                  <td><strong>${m.machine}</strong></td>
+                  <td>${m.type}</td>
+                  <td>${m.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseCQContent').innerHTML = html;
+}
+
+function afficherAnalyseRetourArchi() {
+  const cdActifs = getFilteredCD({ excludeCached: true });
+  const cdNonNiv1 = cdActifs.filter(cd => cd.qualite !== '1');
+  
+  if (cdNonNiv1.length === 0) {
+    document.getElementById('analyseRetourArchiContent').innerHTML = '<div class="empty-state"><p>Tous les CD sont en NIV 1 🎉</p></div>';
+    return;
+  }
+
+  // Répartition par niveau
+  const niv2 = cdActifs.filter(cd => cd.qualite === '2').length;
+  const niv2CC = cdActifs.filter(cd => cd.qualite === '2_cc').length;
+  const niv3 = cdActifs.filter(cd => cd.qualite === '3').length;
+  
+  const tauxNiv2 = ((niv2 / cdActifs.length) * 100).toFixed(1);
+  const tauxNiv2CC = ((niv2CC / cdActifs.length) * 100).toFixed(1);
+  const tauxNiv3 = ((niv3 / cdActifs.length) * 100).toFixed(1);
+
+  // Performance moyenne par niveau
+  const perfNiv2 = niv2 > 0 ? (cdActifs.filter(cd => cd.qualite === '2').reduce((sum, cd) => sum + cd.performance, 0) / niv2).toFixed(1) : 0;
+  const perfNiv2CC = niv2CC > 0 ? (cdActifs.filter(cd => cd.qualite === '2_cc').reduce((sum, cd) => sum + cd.performance, 0) / niv2CC).toFixed(1) : 0;
+  const perfNiv3 = niv3 > 0 ? (cdActifs.filter(cd => cd.qualite === '3').reduce((sum, cd) => sum + cd.performance, 0) / niv3).toFixed(1) : 0;
+
+  // Analyse par code retour archi
+  const codesParType = {};
+  cdNonNiv1.forEach(cd => {
+    // Gérer causes multiples
+    if (cd.codesQualite && Array.isArray(cd.codesQualite)) {
+      cd.codesQualite.forEach(codeId => {
+        if (!codesParType[codeId]) {
+          codesParType[codeId] = { count: 0, cds: [] };
+        }
+        codesParType[codeId].count++;
+        codesParType[codeId].cds.push(cd);
+      });
+    } else if (cd.codeQualite) {
+      // Ancien système
+      if (!codesParType[cd.codeQualite]) {
+        codesParType[cd.codeQualite] = { count: 0, cds: [] };
+      }
+      codesParType[cd.codeQualite].count++;
+      codesParType[cd.codeQualite].cds.push(cd);
+    }
+  });
+
+  const topCodes = Object.entries(codesParType)
+    .map(([codeId, data]) => {
+      const code = dbData.codesQualite.find(c => c.id === codeId);
+      return {
+        code: code ? code.code : 'N/A',
+        description: code ? code.description : 'N/A',
+        count: data.count,
+        pct: ((data.count / cdNonNiv1.length) * 100).toFixed(1)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  let html = `
+    <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+      <div class="stat-card" style="background: linear-gradient(135deg, #FBC02D 0%, #F9A825 100%); color: white;">
+        <h4 style="color: white;">NIV 2</h4>
+        <div class="value" style="color: white;">${niv2} <span class="unit">(${tauxNiv2}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv2}%</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #FB8C00 0%, #F57C00 100%); color: white;">
+        <h4 style="color: white;">NIV 2 CC</h4>
+        <div class="value" style="color: white;">${niv2CC} <span class="unit">(${tauxNiv2CC}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv2CC}%</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #E53935 0%, #C62828 100%); color: white;">
+        <h4 style="color: white;">NIV 3</h4>
+        <div class="value" style="color: white;">${niv3} <span class="unit">(${tauxNiv3}%)</span></div>
+        <div style="font-size: 14px; margin-top: 8px;">Perf: ${perfNiv3}%</div>
+      </div>
+    </div>
+
+    <div class="section-content">
+      <h4 style="margin-bottom: var(--space-16);">Top Codes Retour Archi</h4>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Occurrences</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${topCodes.map(code => `
+              <tr>
+                <td><strong>${code.code}</strong></td>
+                <td>${code.description}</td>
+                <td>${code.count}</td>
+                <td>${code.pct}%</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('analyseRetourArchiContent').innerHTML = html;
 }

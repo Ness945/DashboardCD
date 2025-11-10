@@ -13,7 +13,6 @@ class ShortcutManager {
     this.registerDefaultShortcuts();
     this.attachListener();
     this.createHelpModal();
-    console.log('⌨️ Shortcuts activés');
   }
 
   // === REGISTER DEFAULT SHORTCUTS ===
@@ -337,7 +336,6 @@ class ShortcutManager {
       shortcuts: Object.keys(this.shortcuts).length
     };
 
-    console.log('🐛 DEBUG INFO:', debugInfo);
     showInfo('Mode Debug', `CD: ${debugInfo.cdCount} | Storage: ${debugInfo.storageSize}`);
 
     // Afficher les stats dans la console

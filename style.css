@@ -2408,6 +2408,7 @@ dd {
 
 .collapsible-section.active .collapsible-content {
   max-height: 3000px;
+  overflow: visible;
 }
 
 .collapsible-body {

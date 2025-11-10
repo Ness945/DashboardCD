@@ -3,15 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Application de gestion des Changements de Dimension - Michelin Gravanches">
+    <meta name="theme-color" content="#21808D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Michelin Gravanches - Gestion CD</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="toast.css">
     <link rel="stylesheet" href="loading.css">
     <link rel="stylesheet" href="design-enhancements.css">
+    <link rel="stylesheet" href="comparative-stats.css">
+    <link rel="stylesheet" href="visual-alerts.css">
+    <link rel="stylesheet" href="multiple-causes.css">
 
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('✅ Service Worker enregistré:', registration);
+            })
+            .catch((error) => {
+              console.log('❌ Erreur Service Worker:', error);
+            });
+        });
+      }
+    </script>
 </head>
 <body>
     <!-- Navigation -->
@@ -48,8 +75,8 @@
                 <button class="nav-tab" data-tab="stats">Stats</button>
                 <button class="nav-tab" data-tab="manager">Vue Manager</button>
                 <button class="nav-tab" data-tab="machine">Machine</button>
+                <button class="nav-tab" data-tab="analyse">📊 Analyse</button>
                 <button class="nav-tab" data-tab="qualite">Qualité</button>
-                <button class="nav-tab" data-tab="insights">📊 Insights</button>
                 <button class="nav-tab" data-tab="admin">Admin</button>
                 <button class="nav-tab" data-tab="sauvegarde">💾 Sauvegarde</button>
             </div>
@@ -65,7 +92,15 @@
             <div class="kpi-container" id="kpiContainer">
                 <!-- Rempli par JavaScript -->
             </div>
-            
+
+            <!-- Statistiques Comparatives -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>📊 Statistiques Comparatives</h3>
+            </div>
+            <div id="comparativeStatsContainer">
+                <!-- Rempli par JavaScript -->
+            </div>
+
             <!-- Charts Grid -->
             <div class="charts-grid">
                 <!-- Pie Chart: Répartition Retour Archi -->
@@ -104,9 +139,41 @@
 
         <!-- VUE MANAGER -->
         <section id="manager" class="tab-content">
-            <h2>Vue Manager - Classement Opérateurs</h2>
-            <div id="managerContent">
+            <h2>Vue Manager</h2>
+
+            <!-- Sélecteur de vue -->
+            <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                <button id="btnVueOperateurs" class="btn btn--primary" onclick="afficherVueManager('operateurs')">
+                    👤 Classement Opérateurs
+                </button>
+                <button id="btnVueBinomes" class="btn btn--secondary" onclick="afficherVueManager('binomes')">
+                    👥 Classement Binômes
+                </button>
+            </div>
+
+            <!-- Contenu Opérateurs -->
+            <div id="managerOperateursContent" style="display: block;">
                 <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Contenu Binômes -->
+            <div id="managerBinomesContent" style="display: none;">
+                <div class="table-container">
+                    <table id="tableBestTeams">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Binôme</th>
+                                <th>Performance Moyenne</th>
+                                <th>Taux NIV 1</th>
+                                <th>Nombre de CD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rempli par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -116,50 +183,8 @@
             <div id="machineContent">
                 <!-- Rempli par JavaScript -->
             </div>
-        </section>
 
-        <!-- VUE QUALITÉ -->
-        <section id="qualite" class="tab-content">
-            <h2>Qualité - Analyse Retours Archi et CQ</h2>
-            <div id="qualiteContent">
-                <!-- Rempli par JavaScript -->
-            </div>
-        </section>
-
-        <!-- VUE INSIGHTS -->
-        <section id="insights" class="tab-content">
-            <h2>📊 Insights & Analytics Avancés</h2>
-
-            <!-- Recommandations -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>💡 Recommandations</h3>
-            </div>
-            <div id="recommendationsContent">
-                <!-- Rempli par JavaScript -->
-            </div>
-
-            <!-- Meilleurs Binômes -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>🏆 Top 10 Meilleurs Binômes</h3>
-            </div>
-            <div class="table-container">
-                <table id="tableBestTeams">
-                    <thead>
-                        <tr>
-                            <th>Rang</th>
-                            <th>Binôme</th>
-                            <th>Performance Moyenne</th>
-                            <th>Taux NIV 1</th>
-                            <th>Nombre de CD</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Rempli par JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Machines Problématiques -->
+            <!-- Machines à Surveiller -->
             <div class="section-header" style="margin-top: var(--space-32);">
                 <h3>⚠️ Machines à Surveiller</h3>
             </div>
@@ -180,13 +205,42 @@
                     </tbody>
                 </table>
             </div>
+        </section>
 
-            <!-- Tendances Hebdomadaires -->
-            <div class="section-header" style="margin-top: var(--space-32);">
-                <h3>📈 Tendances Hebdomadaires</h3>
+        <!-- VUE ANALYSE -->
+        <section id="analyse" class="tab-content">
+            <h2>📊 Analyse des Problèmes</h2>
+
+            <!-- Analyse des Incidents / Pannes -->
+            <div class="section-header">
+                <h3>🔧 Analyse des Pannes et Incidents</h3>
             </div>
-            <div class="chart-card">
-                <canvas id="weeklyTrendsChart" style="max-height: 400px;"></canvas>
+            <div id="analyseIncidentsContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Analyse des CQ Après CD -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>⚠️ Analyse des CQ Après CD</h3>
+            </div>
+            <div id="analyseCQContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Analyse des Retours Archi -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>📋 Analyse des Retours Archi</h3>
+            </div>
+            <div id="analyseRetourArchiContent">
+                <!-- Rempli par JavaScript -->
+            </div>
+        </section>
+
+        <!-- VUE QUALITÉ -->
+        <section id="qualite" class="tab-content">
+            <h2>Qualité - Analyse Retours Archi et CQ</h2>
+            <div id="qualiteContent">
+                <!-- Rempli par JavaScript -->
             </div>
         </section>
 
@@ -602,6 +656,10 @@
                         <button type="button" class="badge-btn badge-niv3" data-value="3">NIV 3</button>
                     </div>
                     <input type="hidden" id="cdQualite" required>
+                    <!-- Zone d'affichage des codes Retour Archi sélectionnés -->
+                    <div id="selectedRetourArchiDisplay" class="selected-causes-display" style="display: none;">
+                        <div class="selected-causes-list" id="selectedRetourArchiList"></div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -611,6 +669,10 @@
                         <button type="button" class="badge-btn" data-value="Non">Non</button>
                     </div>
                     <input type="hidden" id="cdCQApres" required>
+                    <!-- Zone d'affichage des codes CQ sélectionnés -->
+                    <div id="selectedCQDisplay" class="selected-causes-display" style="display: none;">
+                        <div class="selected-causes-list" id="selectedCQList"></div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -620,6 +682,10 @@
                         <button type="button" class="badge-btn" data-value="Non">Non</button>
                     </div>
                     <input type="hidden" id="cdIncident" required>
+                    <!-- Zone d'affichage des codes Incident sélectionnés -->
+                    <div id="selectedIncidentDisplay" class="selected-causes-display" style="display: none;">
+                        <div class="selected-causes-list" id="selectedIncidentList"></div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -724,7 +790,7 @@
                             <th>D1 Réel</th>
                             <th>D1 Net</th>
                             <th>Retour Archi</th>
-                            <th onclick="trierHistorique('performance')">Performance</th>
+                            <th onclick="trierHistorique('performance')">Perf</th>
                             <th>CQ Après CD</th>
                             <th>Incident</th>
                             <th>Anomalie</th>
@@ -740,6 +806,7 @@
         <!-- VUE 4: FEEDBACK -->
         <section id="feedback" class="tab-content">
             <h2>Feedback Individuel</h2>
+
             <div class="form-group">
                 <label class="form-label">Sélectionner un opérateur</label>
                 <select id="feedbackOperateur" class="form-control" onchange="afficherFeedback()">
@@ -896,7 +963,11 @@
             <select id="codeIncidentSelect" class="form-control">
                 <option value="">-- Sélectionner un code --</option>
             </select>
-            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident"></textarea>
+            <div class="form-group" style="margin-top: var(--space-12);">
+                <label for="tempsImpactIncident">Temps d'impact (en minutes)</label>
+                <input type="number" id="tempsImpactIncident" class="form-control" min="0" placeholder="Durée de l'impact en minutes">
+            </div>
+            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident" style="margin-top: var(--space-12);"></textarea>
             <div class="modal-actions">
                 <button class="btn btn--primary" onclick="validerIncident()">Valider</button>
                 <button class="btn btn--secondary" onclick="fermerModal('modalIncident')">Annuler</button>
@@ -907,6 +978,13 @@
     <!-- Modal Détails CD -->
     <div id="modalDetailsCD" class="modal-overlay">
         <div id="detailsCDContainer" class="modal-container">
+            <!-- Contenu généré dynamiquement par JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal Détails Machine -->
+    <div id="modalDetailsMachine" class="modal-overlay">
+        <div id="detailsMachineContainer" class="modal-container">
             <!-- Contenu généré dynamiquement par JavaScript -->
         </div>
     </div>
@@ -922,6 +1000,7 @@
     <!-- New Enhancement Modules -->
     <script src="toast.js"></script>
     <script src="storage.js"></script>
+    <script src="indexeddb-storage.js"></script>
     <script src="validation.js"></script>
     <script src="loading.js"></script>
     <script src="undo-redo.js"></script>
@@ -932,6 +1011,9 @@
     <script src="insights-ui.js"></script>
     <script src="advanced-filters.js"></script>
     <script src="ui-enhancements.js"></script>
+    <script src="comparative-stats.js"></script>
+    <script src="visual-alerts.js"></script>
+    <script src="multiple-causes.js"></script>
 
     <!-- Main Application -->
     <script src="app.js"></script>

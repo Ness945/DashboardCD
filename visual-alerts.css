@@ -1,0 +1,192 @@
+/* === ALERTES VISUELLES === */
+
+/* Panneau d'alertes */
+.alerts-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  margin-top: var(--space-20);
+}
+
+.alert-section {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 2px solid;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.alert-section-critical {
+  border-color: #C62828;
+  background: rgba(198, 40, 40, 0.03);
+}
+
+.alert-section-warning {
+  border-color: #F57C00;
+  background: rgba(245, 124, 0, 0.03);
+}
+
+.alert-section-success {
+  border-color: #2E7D32;
+  background: rgba(46, 125, 50, 0.03);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-20);
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.alert-icon {
+  font-size: var(--font-size-2xl);
+}
+
+.alert-header h4 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.alert-badge {
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.alert-section-critical .alert-badge {
+  background: #C62828;
+}
+
+.alert-section-warning .alert-badge {
+  background: #F57C00;
+}
+
+.alert-section-success .alert-badge {
+  background: #2E7D32;
+}
+
+.alert-list {
+  padding: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.alert-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  padding: var(--space-12) var(--space-16);
+  transition: all var(--duration-fast) var(--ease-standard);
+  cursor: pointer;
+}
+
+.alert-item:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+.alert-item-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-4);
+}
+
+.alert-item-detail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.alert-item-more {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  padding: var(--space-8);
+}
+
+.text-danger {
+  color: #C62828;
+  font-weight: var(--font-weight-bold);
+}
+
+/* Alertes dans l'historique */
+@keyframes blink-red {
+  0%, 100% { background-color: rgba(198, 40, 40, 0.2); }
+  50% { background-color: rgba(198, 40, 40, 0.4); }
+}
+
+/* CD avec D1 > 18h - Rouge clignotant */
+#tableHistorique tr.alert-critical-d1 {
+  animation: blink-red 2s ease-in-out infinite;
+  border-left: 4px solid #C62828;
+}
+
+#tableHistorique tr.alert-critical-d1:hover {
+  animation-play-state: paused;
+  background-color: rgba(198, 40, 40, 0.3) !important;
+}
+
+/* Machine problématique - Surlignée en orange */
+#tableHistorique tr.alert-problematic-machine {
+  background-color: rgba(245, 124, 0, 0.15);
+  border-left: 4px solid #F57C00;
+}
+
+#tableHistorique tr.alert-problematic-machine:hover {
+  background-color: rgba(245, 124, 0, 0.25) !important;
+}
+
+/* Si les deux alertes sont présentes */
+#tableHistorique tr.alert-critical-d1.alert-problematic-machine {
+  animation: blink-red 2s ease-in-out infinite;
+  border-left: 4px solid #C62828;
+  box-shadow: 0 0 0 2px #F57C00 inset;
+}
+
+/* Tooltip pour expliquer les alertes */
+.alert-tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.alert-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-charcoal-800);
+  color: white;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .alert-header {
+    flex-wrap: wrap;
+  }
+
+  .alert-header h4 {
+    font-size: var(--font-size-base);
+  }
+
+  .alert-item-detail {
+    font-size: var(--font-size-xs);
+  }
+}

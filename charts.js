@@ -379,5 +379,5 @@ const chartManager = new ChartManager();
 
 // Initialiser les graphiques au chargement
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('✅ Chart Manager initialisé');
+  // Chart Manager ready
 });
