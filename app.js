@@ -1201,6 +1201,44 @@ function afficherHistorique(filteredData = null) {
     const incBadgeClass = cd.incident === 'Oui' ? 'status--warning' : 'status--info';
     const incLabel = cd.incident === 'Oui' ? 'OUI' : 'NON';
 
+    // Badge pour Panne avec tooltip détaillé (temps d'arrêt)
+    let incidentContent = `<span class="status ${incBadgeClass}">${incLabel}</span>`;
+    if (cd.incident === 'Oui') {
+      // Support pour causes multiples avec temps individuels
+      if (cd.codesIncident && Array.isArray(cd.codesIncident) && cd.codesIncident.length > 0) {
+        const incidentsList = cd.codesIncident.map(id => {
+          const code = dbData.codesIncident.find(c => c.id === id);
+          const temps = cd.tempsImpactIncident && cd.tempsImpactIncident[id] ? cd.tempsImpactIncident[id] : 0;
+          const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+          return code ? `${code.code} - ${code.description}${tempsStr}` : '?';
+        }).join('<br>');
+
+        incidentContent = `
+          <div class="multiple-codes-tooltip">
+            <span class="status ${incBadgeClass}" style="cursor: pointer;">OUI</span>
+            <span class="tooltip-content">${incidentsList}</span>
+          </div>
+        `;
+      }
+      // Fallback pour l'ancien format (single code)
+      else if (cd.codeIncident) {
+        const codeIncident = dbData.codesIncident.find(c => c.id === cd.codeIncident);
+        const temps = cd.tempsImpact || 0;
+        const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+        if (codeIncident) {
+          incidentContent = `
+            <div class="multiple-codes-tooltip">
+              <span class="status ${incBadgeClass}" style="cursor: pointer;">OUI</span>
+              <span class="tooltip-content">
+                <strong>Panne:</strong><br>
+                ${codeIncident.code} - ${codeIncident.description}${tempsStr}
+              </span>
+            </div>
+          `;
+        }
+      }
+    }
+
     // Badge rouge pour CQ Après CD - support multiple codes
     let cqContent = '-';
     if (cd.cqApres === 'Oui') {
@@ -1309,7 +1347,7 @@ function afficherHistorique(filteredData = null) {
       <td>${qualiteContent}</td>
       <td>${cd.performance}%</td>
       <td>${cqContent}</td>
-      <td><span class="status ${incBadgeClass}">${incLabel}</span></td>
+      <td>${incidentContent}</td>
       <td>${cd.anomalie ? '<span class="status status--error">Anomalie</span>' : '-'}</td>
       <td><div class="tags-cell">${tagsHtml}</div></td>
       <td>
@@ -1548,24 +1586,39 @@ function voirDetailsCD(id) {
     </div>
     
     <div class="modal-codes-section">
-      <h4>Incident</h4>
+      <h4>Panne</h4>
       <div class="modal-code-item" style="align-items: center;">
-        <div class="modal-code-label">Incident :</div>
+        <div class="modal-code-label">Panne :</div>
         <div class="modal-code-value">
           <span class="status ${cd.incident === 'Oui' ? 'status--warning' : 'status--info'}" style="font-weight: var(--font-weight-bold); font-size: var(--font-size-base);">${cd.incident === 'Oui' ? 'OUI' : 'NON'}</span>
         </div>
       </div>
       ${codesIncident.length > 0 ?
-        codesIncident.map(code => `
-          <div class="modal-code-item">
-            <div class="modal-code-label">Code Incident :</div>
-            <div class="modal-code-value"><strong>${code.code}</strong> - ${code.description}</div>
-          </div>
-        `).join('')
+        codesIncident.map(code => {
+          // Récupérer le temps d'impact pour ce code
+          let tempsImpact = 0;
+          if (cd.tempsImpactIncident && cd.tempsImpactIncident[code.id]) {
+            tempsImpact = cd.tempsImpactIncident[code.id];
+          } else if (cd.tempsImpact && codesIncident.length === 1) {
+            // Ancien système : temps global si un seul code
+            tempsImpact = cd.tempsImpact;
+          }
+          const tempsStr = tempsImpact > 0 ? `<span style="color: var(--color-warning); font-weight: var(--font-weight-bold); margin-left: 12px;">⏱️ ${tempsImpact} min</span>` : '';
+
+          return `
+            <div class="modal-code-item">
+              <div class="modal-code-label">Code Panne :</div>
+              <div class="modal-code-value">
+                <strong>${code.code}</strong> - ${code.description}
+                ${tempsStr}
+              </div>
+            </div>
+          `;
+        }).join('')
       : `
         <div class="modal-code-item">
           <div class="modal-code-label"></div>
-          <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucun incident</div>
+          <div class="modal-code-value" style="color: var(--color-text-secondary); font-style: italic;">Aucune panne</div>
         </div>
       `}
       ${cd.commentaireIncident || (cd.commentsIncident && cd.commentsIncident.global) ? `
@@ -1700,7 +1753,7 @@ function voirDetailsMachine(machineId) {
             <div class="modal-code-value"><span class="status ${anomalies > 0 ? 'status--error' : 'status--success'}">${anomalies}</span></div>
           </div>
           <div class="modal-code-item">
-            <div class="modal-code-label">Incidents</div>
+            <div class="modal-code-label">Pannes</div>
             <div class="modal-code-value"><span class="status ${incidents > 0 ? 'status--warning' : 'status--info'}">${incidents}</span></div>
           </div>
           <div class="modal-code-item">
@@ -2372,7 +2425,7 @@ function afficherFeedback() {
               <th>Qualité</th>
               <th>Perf</th>
               <th>CQ Après CD</th>
-              <th>Incident</th>
+              <th>Panne</th>
               <th>Anomalie</th>
               <th>Visibilité</th>
             </tr>
@@ -2403,6 +2456,41 @@ function afficherFeedback() {
               const cqLabel = cd.cqApres === 'Oui' ? 'OUI' : 'NON';
               const incBadgeClass = cd.incident === 'Oui' ? 'status--warning' : 'status--info';
               const incLabel = cd.incident === 'Oui' ? 'OUI' : 'NON';
+
+              // Badge pour Panne avec tooltip dans Feedback
+              let incidentContent = `<span class="status ${incBadgeClass}">${incLabel}</span>`;
+              if (cd.incident === 'Oui') {
+                if (cd.codesIncident && Array.isArray(cd.codesIncident) && cd.codesIncident.length > 0) {
+                  const incidentsList = cd.codesIncident.map(id => {
+                    const code = dbData.codesIncident.find(c => c.id === id);
+                    const temps = cd.tempsImpactIncident && cd.tempsImpactIncident[id] ? cd.tempsImpactIncident[id] : 0;
+                    const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+                    return code ? `${code.code} - ${code.description}${tempsStr}` : '?';
+                  }).join('<br>');
+
+                  incidentContent = `
+                    <div class="multiple-codes-tooltip">
+                      <span class="status ${incBadgeClass}" style="cursor: pointer;">OUI</span>
+                      <span class="tooltip-content">${incidentsList}</span>
+                    </div>
+                  `;
+                } else if (cd.codeIncident) {
+                  const codeIncident = dbData.codesIncident.find(c => c.id === cd.codeIncident);
+                  const temps = cd.tempsImpact || 0;
+                  const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+                  if (codeIncident) {
+                    incidentContent = `
+                      <div class="multiple-codes-tooltip">
+                        <span class="status ${incBadgeClass}" style="cursor: pointer;">OUI</span>
+                        <span class="tooltip-content">
+                          <strong>Panne:</strong><br>
+                          ${codeIncident.code} - ${codeIncident.description}${tempsStr}
+                        </span>
+                      </div>
+                    `;
+                  }
+                }
+              }
               
               // Tooltip pour CQ dans Feedback
               let cqContent = `<span class="status ${cqBadgeClass}">${cqLabel}</span>`;
@@ -2465,7 +2553,7 @@ function afficherFeedback() {
                   <td>${qualiteContent}</td>
                   <td>${cd.performance}%</td>
                   <td>${cqContent}</td>
-                  <td><span class="status ${incBadgeClass}">${incLabel}</span></td>
+                  <td>${incidentContent}</td>
                   <td>${cd.anomalie ? '<span class="status status--error">Oui</span>' : '-'}</td>
                   <td onclick="event.stopPropagation()">
                     <button
