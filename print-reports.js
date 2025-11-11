@@ -283,13 +283,24 @@ class PrintReportsManager {
       // Retour Archi - afficher le NIV au lieu de la qualité brute
       const retourArchiLabel = (cd.qualite && cd.qualite !== "1") ? this.getQualiteLabel(cd.qualite) : '-';
 
-      // Détail CQ
+      // Détail CQ - gérer multiples CQ avec description
       let cqInfo = '-';
       if (cd.cqApres === "Oui") {
-        if (cd.codeCQ) {
-          const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
-          if (codeCQ) {
-            cqInfo = codeCQ.code; // Ex: "16.1"
+        const codesCQList = Array.isArray(cd.codesCQ) ? cd.codesCQ :
+                            (cd.codeCQ ? [cd.codeCQ] : []);
+
+        if (codesCQList.length > 0) {
+          const cqDetailsArray = [];
+          codesCQList.forEach(cqId => {
+            const codeCQ = dbData.codesCQ.find(c => c.id === cqId);
+            if (codeCQ) {
+              // Afficher code + description courte
+              cqDetailsArray.push(`${codeCQ.code} - ${codeCQ.description}`);
+            }
+          });
+
+          if (cqDetailsArray.length > 0) {
+            cqInfo = cqDetailsArray.join(' | ');
           } else {
             cqInfo = 'Oui';
           }
@@ -605,7 +616,7 @@ class PrintReportsManager {
                 <th>PNC</th>
                 <th>PNS</th>
                 <th class="text-center">D1</th>
-                <th class="text-center">Retours Archi</th>
+                <th class="text-center">Archi Niv 2 / 3</th>
                 <th class="text-center">CQ</th>
                 <th class="text-center">Panne</th>
                 <th>Commentaire</th>
@@ -921,10 +932,9 @@ class PrintReportsManager {
             <tr>
               <th>Total CD</th>
               <th>D1 Moyen</th>
-              <th>Retours Archi</th>
-              <th>Taux Qualité</th>
+              <th>Taux de Niv 1</th>
               <th>CQ Après CD</th>
-              <th>Taux CQ</th>
+              <th>Taux de CQ Post CD</th>
               <th>Pannes</th>
             </tr>
           </thead>
@@ -932,7 +942,6 @@ class PrintReportsManager {
             <tr>
               <td class="stat-value">${stats.totalCD}</td>
               <td class="stat-value">${stats.moyenneD1}h</td>
-              <td class="stat-value">${stats.totalRetoursArchi}</td>
               <td class="stat-value">${perfDetails.tauxQualite}%</td>
               <td class="stat-value">${stats.totalCQApres}</td>
               <td class="stat-value">${perfDetails.tauxCQ}%</td>
@@ -956,12 +965,12 @@ class PrintReportsManager {
                 <div style="font-size: 9pt; color: #666;">D1 Moyen</div>
               </div>
               <div>
-                <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.tauxRetoursArchi}%</div>
-                <div style="font-size: 9pt; color: #666;">Taux Retours Archi</div>
+                <div style="font-size: 16pt; font-weight: 600;">${(100 - parseFloat(perfDetails.topBinome.tauxRetoursArchi)).toFixed(1)}%</div>
+                <div style="font-size: 9pt; color: #666;">Taux de Niv 1</div>
               </div>
               <div>
                 <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.tauxCQ}%</div>
-                <div style="font-size: 9pt; color: #666;">Taux CQ</div>
+                <div style="font-size: 9pt; color: #666;">Taux de CQ Post CD</div>
               </div>
             </div>
           </div>
@@ -998,10 +1007,9 @@ class PrintReportsManager {
                 <th style="text-align: left;">Binôme</th>
                 <th>CD Ensemble</th>
                 <th>D1 Moyen</th>
-                <th>Retours Archi</th>
-                <th>Taux Retours</th>
+                <th>Taux de Niv 1</th>
                 <th>CQ Après</th>
-                <th>Taux CQ</th>
+                <th>Taux de CQ Post CD</th>
               </tr>
             </thead>
             <tbody>
@@ -1013,8 +1021,7 @@ class PrintReportsManager {
                     <td style="text-align: left;">${binome.nom}${binome.nom === perfDetails.topBinome?.nom ? ' 🏆' : ''}</td>
                     <td class="stat-value">${binome.count}</td>
                     <td class="stat-value">${binome.moyenneD1}h</td>
-                    <td class="stat-value">${binome.retoursArchi}</td>
-                    <td class="stat-value">${binome.tauxRetoursArchi}%</td>
+                    <td class="stat-value">${(100 - parseFloat(binome.tauxRetoursArchi)).toFixed(1)}%</td>
                     <td class="stat-value">${binome.cqApres}</td>
                     <td class="stat-value">${binome.tauxCQ}%</td>
                   </tr>
@@ -1032,10 +1039,9 @@ class PrintReportsManager {
                 <th style="text-align: left;">Type Machine</th>
                 <th>Nombre CD</th>
                 <th>D1 Moyen</th>
-                <th>Retours Archi</th>
-                <th>Taux Retours</th>
+                <th>Taux de Niv 1</th>
                 <th>CQ Après</th>
-                <th>Taux CQ</th>
+                <th>Taux de CQ Post CD</th>
               </tr>
             </thead>
             <tbody>
@@ -1046,32 +1052,11 @@ class PrintReportsManager {
                     <td style="text-align: left; font-weight: 600;">${type}</td>
                     <td class="stat-value">${machine.count}</td>
                     <td class="stat-value">${machine.moyenneD1}h</td>
-                    <td class="stat-value">${machine.retoursArchi}</td>
-                    <td class="stat-value">${machine.tauxRetoursArchi}%</td>
+                    <td class="stat-value">${(100 - parseFloat(machine.tauxRetoursArchi)).toFixed(1)}%</td>
                     <td class="stat-value">${machine.cqApres}</td>
                     <td class="stat-value">${machine.tauxCQ}%</td>
                   </tr>
                 `).join('')}
-            </tbody>
-          </table>
-        ` : ''}
-
-        ${Object.keys(stats.detailRetoursArchi).length > 0 ? `
-          <div class="section-title">Détail Retours Archi</div>
-          <table style="width: 50%;">
-            <thead>
-              <tr>
-                <th>Niveau</th>
-                <th>Nombre</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Object.entries(stats.detailRetoursArchi).map(([niveau, count]) => `
-                <tr>
-                  <td>${this.getQualiteLabel(niveau)}</td>
-                  <td class="stat-value">${count}</td>
-                </tr>
-              `).join('')}
             </tbody>
           </table>
         ` : ''}
