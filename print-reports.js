@@ -126,16 +126,21 @@ class PrintReportsManager {
       totalCQ: 0,
       totalPannes: 0,
       tempsPannesTotal: 0,
-      tauxD1: 0,
+      tempsD1TotalMinutes: 0, // Temps total D1 en minutes
+      moyenneD1Heures: 0, // Moyenne D1 en heures
       tauxNiv1: 0,
-      tauxArchi: 0,
-      tauxCQ: 0,
       pannesDetail: {},
       archiByLevel: {} // Compteur par niveau d'archi
     };
 
     cds.forEach(cd => {
-      // D1
+      // D1 - Calcul du temps moyen
+      // Le temps D1 est calculé à partir du temps total des incidents
+      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
+        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
+        stats.tempsD1TotalMinutes += tempsTotal;
+      }
+
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
       // Retours Archi et NIV 1
@@ -190,11 +195,9 @@ class PrintReportsManager {
       }
     });
 
-    // Calculer les taux
-    stats.tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
+    // Calculer la moyenne D1 en heures
+    stats.moyenneD1Heures = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
     stats.tauxNiv1 = stats.totalCD > 0 ? ((stats.totalNiv1 / stats.totalCD) * 100).toFixed(1) : 0;
-    stats.tauxArchi = stats.totalCD > 0 ? ((stats.totalArchi / stats.totalCD) * 100).toFixed(1) : 0;
-    stats.tauxCQ = stats.totalCD > 0 ? ((stats.totalCQ / stats.totalCD) * 100).toFixed(1) : 0;
 
     return stats;
   }
@@ -214,13 +217,20 @@ class PrintReportsManager {
           totalCQ: 0,
           totalPannes: 0,
           tempsPannes: 0,
+          tempsD1TotalMinutes: 0,
           pannesDetail: {},
-          cdDetails: [] // Nouveau: stocker tous les CD
+          cdDetails: [] // Stocker tous les CD
         };
       }
 
       const stats = machineStats[machine.nom];
       stats.totalCD++;
+
+      // Temps D1 pour cette machine
+      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
+        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
+        stats.tempsD1TotalMinutes += tempsTotal;
+      }
 
       // Stocker les détails du CD
       stats.cdDetails.push({
@@ -284,216 +294,287 @@ class PrintReportsManager {
       <head>
         <meta charset="UTF-8">
         <title>Rapport J-1 - ${dateFormatted}</title>
-        <link rel="stylesheet" href="print-reports.css">
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003d7a; padding-bottom: 15px; }
-          .print-header h1 { color: #003d7a; margin: 5px 0; }
-          .print-header .date { color: #666; font-size: 18px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
-          .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-          .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-          .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-          .stat-card.red { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-          .stat-card .value { font-size: 48px; font-weight: bold; margin: 10px 0; }
-          .stat-card .label { font-size: 14px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-          .stat-card .percentage { font-size: 20px; margin-top: 5px; opacity: 0.9; }
-          .section-title { color: #003d7a; font-size: 24px; font-weight: bold; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #003d7a; }
-          .pannes-chart { margin: 20px 0; }
-          .panne-bar { margin: 10px 0; }
-          .panne-bar .panne-label { font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
-          .panne-bar .bar-container { background: #e0e0e0; height: 30px; border-radius: 5px; position: relative; overflow: hidden; }
-          .panne-bar .bar-fill { background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); height: 100%; display: flex; align-items: center; padding-left: 10px; color: white; font-weight: bold; transition: width 0.3s; }
-          .machines-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; page-break-inside: avoid; }
-          .machine-card { border: 2px solid #ddd; border-radius: 10px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); page-break-inside: avoid; }
-          .machine-card h3 { color: #003d7a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
-          .machine-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 15px 0; }
-          .machine-stat { text-align: center; padding: 10px; background: #f5f5f5; border-radius: 5px; }
-          .machine-stat .value { font-size: 24px; font-weight: bold; color: #003d7a; }
-          .machine-stat .label { font-size: 12px; color: #666; margin-top: 5px; }
-          .machine-pannes { margin-top: 15px; }
-          .machine-panne-item { display: flex; justify-content: space-between; padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 5px; border-left: 4px solid #fa709a; }
-          .machine-panne-item .code { font-weight: bold; color: #003d7a; }
-          .machine-panne-item .temps { color: #fa709a; font-weight: bold; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #fff;
+            color: #333;
+            font-size: 11pt;
+          }
+          .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #000;
+          }
+          .report-header h1 {
+            font-size: 20pt;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 8px;
+          }
+          .report-header .date {
+            font-size: 12pt;
+            color: #555;
+            margin: 5px 0;
+          }
+          .report-header .subtitle {
+            font-size: 10pt;
+            color: #777;
+          }
+
+          .section-title {
+            font-size: 14pt;
+            font-weight: 600;
+            color: #000;
+            margin: 25px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #666;
+            text-transform: uppercase;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #fff;
+          }
+
+          th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10pt;
+            border: 1px solid #999;
+            color: #000;
+          }
+
+          td {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            font-size: 10pt;
+            color: #333;
+          }
+
+          tbody tr:nth-child(even) {
+            background: #fafafa;
+          }
+
+          .stats-table th {
+            text-align: center;
+            background: #e0e0e0;
+          }
+
+          .stats-table td {
+            text-align: center;
+            font-weight: 500;
+          }
+
+          .number-cell {
+            font-weight: 600;
+            color: #000;
+          }
+
+          .machine-section {
+            margin: 30px 0;
+            page-break-inside: avoid;
+          }
+
+          .machine-title {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #000;
+            margin: 20px 0 10px 0;
+            padding: 8px 12px;
+            background: #e8e8e8;
+            border-left: 4px solid #000;
+          }
+
+          .cd-details-table th {
+            font-size: 9pt;
+            padding: 6px;
+          }
+
+          .cd-details-table td {
+            font-size: 9pt;
+            padding: 5px;
+          }
+
+          .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #999;
+            text-align: center;
+            font-size: 9pt;
+            color: #777;
+          }
+
           @media print {
-            .machines-grid { page-break-inside: avoid; }
-            .machine-card { page-break-inside: avoid; }
+            body { margin: 10mm; }
+            .machine-section { page-break-inside: avoid; }
+            @page { size: A4; margin: 15mm; }
           }
         </style>
       </head>
       <body>
-        <div class="print-header">
-          <h1>📊 RAPPORT D'ANALYSE QUOTIDIEN</h1>
+        <div class="report-header">
+          <h1>RAPPORT D'ANALYSE QUOTIDIEN</h1>
           <div class="date">J-1 : ${dateFormatted}</div>
-          <div style="margin-top: 10px; color: #666; font-size: 14px;">Michelin Gravanches - Dashboard CD</div>
+          <div class="subtitle">Michelin Gravanches - Dashboard CD</div>
         </div>
 
-        <div class="section-title">📈 Vue d'ensemble</div>
-        <div class="stats-grid">
-          <div class="stat-card blue">
-            <div class="label">Total CD</div>
-            <div class="value">${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card green">
-            <div class="label">Taux D1</div>
-            <div class="value">${globalStats.tauxD1}%</div>
-            <div class="percentage">${globalStats.totalD1} / ${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);">
-            <div class="label">NIV 1 (Sans Archi)</div>
-            <div class="value">${globalStats.tauxNiv1}%</div>
-            <div class="percentage">${globalStats.totalNiv1} / ${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card orange">
-            <div class="label">Retours Archi</div>
-            <div class="value">${globalStats.totalArchi}</div>
-            <div class="percentage">${globalStats.tauxArchi}% des CD</div>
-          </div>
-          <div class="stat-card red">
-            <div class="label">CQ Après CD</div>
-            <div class="value">${globalStats.totalCQ}</div>
-            <div class="percentage">${globalStats.tauxCQ}% des CD</div>
-          </div>
-        </div>
+        <div class="section-title">Vue d'ensemble</div>
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Total CD</th>
+              <th>D1 Moyen (heures)</th>
+              <th>NIV 1 (%)</th>
+              <th>Retours Archi</th>
+              <th>CQ après CD</th>
+              <th>Pannes</th>
+              <th>Temps Pannes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="number-cell">${globalStats.totalCD}</td>
+              <td class="number-cell">${globalStats.moyenneD1Heures}h</td>
+              <td class="number-cell">${globalStats.tauxNiv1}% (${globalStats.totalNiv1})</td>
+              <td class="number-cell">${globalStats.totalArchi}</td>
+              <td class="number-cell">${globalStats.totalCQ}</td>
+              <td class="number-cell">${globalStats.totalPannes}</td>
+              <td class="number-cell">${this.formatMinutes(globalStats.tempsPannesTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
 
         ${Object.keys(globalStats.archiByLevel).length > 0 ? `
-          <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #f5576c;">
-            <h3 style="margin: 0 0 15px 0; color: #003d7a; font-size: 18px;">📊 Détail Retours Archi par Niveau</h3>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-              ${Object.entries(globalStats.archiByLevel).map(([niveau, count]) => {
-                const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : `Niveau ${niveau}`;
-                const niveauColor = niveau === '2' || niveau === '2_grave' || niveau === '2_cc' ? '#f5576c' : '#ff9800';
-                return `
-                  <div style="text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border-top: 3px solid ${niveauColor};">
-                    <div style="font-size: 32px; font-weight: bold; color: ${niveauColor};">${count}</div>
-                    <div style="font-size: 14px; color: #666; margin-top: 5px;">${niveauLabel}</div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
+          <div class="section-title">Détail Retours Archi par Niveau</div>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                ${Object.entries(globalStats.archiByLevel).map(([niveau]) => {
+                  const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : 'Niveau ' + niveau;
+                  return '<th>' + niveauLabel + '</th>';
+                }).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                ${Object.entries(globalStats.archiByLevel).map(([, count]) => {
+                  return '<td class="number-cell">' + count + '</td>';
+                }).join('')}
+              </tr>
+            </tbody>
+          </table>
         ` : ''}
 
-        <div class="section-title">⚠️ Analyse des Pannes (${globalStats.totalPannes} total - ${this.formatMinutes(globalStats.tempsPannesTotal)})</div>
-        <div class="pannes-chart">
+        <div class="section-title">Analyse des Pannes</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th style="text-align: center; width: 100px;">Occurrences</th>
+              <th style="text-align: center; width: 120px;">Temps Total</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
 
-    // Graphique des pannes
+    // Pannes triées par occurrences
     const pannesArray = Object.entries(globalStats.pannesDetail).sort((a, b) => b[1].count - a[1].count);
-    const maxPanneCount = pannesArray.length > 0 ? pannesArray[0][1].count : 1;
-
-    pannesArray.forEach(([code, data]) => {
-      const percentage = (data.count / maxPanneCount) * 100;
-      html += `
-        <div class="panne-bar">
-          <div class="panne-label">
-            <span><strong>${code}</strong> - ${data.description}</span>
-            <span>${data.count}x - ${this.formatMinutes(data.tempsTotal)}</span>
-          </div>
-          <div class="bar-container">
-            <div class="bar-fill" style="width: ${percentage}%">${data.count}</div>
-          </div>
-        </div>
-      `;
-    });
+    if (pannesArray.length > 0) {
+      pannesArray.forEach(([code, data]) => {
+        html += `
+          <tr>
+            <td style="font-weight: 600;">${code}</td>
+            <td>${data.description}</td>
+            <td style="text-align: center;">${data.count}</td>
+            <td style="text-align: center;">${this.formatMinutes(data.tempsTotal)}</td>
+          </tr>
+        `;
+      });
+    } else {
+      html += '<tr><td colspan="4" style="text-align: center; color: #999;">Aucune panne</td></tr>';
+    }
 
     html += `
-        </div>
+          </tbody>
+        </table>
 
-        <div class="section-title" style="page-break-before: always;">🏭 Analyse par Machine</div>
-        <div class="machines-grid">
+        <div class="section-title" style="page-break-before: always;">Analyse par Machine</div>
     `;
 
     // Stats par machine
     Object.entries(machineStats).sort((a, b) => b[1].totalCD - a[1].totalCD).forEach(([machineName, stats]) => {
-      const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
+      const moyenneD1 = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
 
       html += `
-        <div class="machine-card">
-          <h3>🏭 ${machineName} <span style="font-weight: normal; font-size: 14px; color: #666;">(${stats.totalCD} CD)</span></h3>
+        <div class="machine-section">
+          <div class="machine-title">${machineName} (${stats.totalCD} CD)</div>
 
-          <!-- Stats globales -->
-          <div class="machine-stats">
-            <div class="machine-stat">
-              <div class="value">${stats.totalCD}</div>
-              <div class="label">Total CD</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${tauxD1}%</div>
-              <div class="label">Taux D1</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalArchi}</div>
-              <div class="label">Retours Archi</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalCQ}</div>
-              <div class="label">CQ après CD</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalPannes}</div>
-              <div class="label">Pannes</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${this.formatMinutes(stats.tempsPannes)}</div>
-              <div class="label">Temps Pannes</div>
-            </div>
-          </div>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Total CD</th>
+                <th>D1 Moyen (h)</th>
+                <th>Retours Archi</th>
+                <th>CQ après CD</th>
+                <th>Pannes</th>
+                <th>Temps Pannes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="number-cell">${stats.totalCD}</td>
+                <td class="number-cell">${moyenneD1}h</td>
+                <td class="number-cell">${stats.totalArchi}</td>
+                <td class="number-cell">${stats.totalCQ}</td>
+                <td class="number-cell">${stats.totalPannes}</td>
+                <td class="number-cell">${this.formatMinutes(stats.tempsPannes)}</td>
+              </tr>
+            </tbody>
+          </table>
 
-          <!-- Détail des pannes -->
-          ${stats.totalPannes > 0 ? `
-            <div style="margin: 15px 0;">
-              <strong style="color: #003d7a; display: block; margin-bottom: 8px;">⚠️ Détail des Pannes :</strong>
-              ${Object.entries(stats.pannesDetail).map(([code, data]) => `
-                <div class="machine-panne-item">
-                  <span class="code">${code}</span>
-                  <span>${data.count}x</span>
-                  <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-
-          <!-- Liste détaillée des CD -->
-          <div style="margin-top: 15px;">
-            <strong style="color: #003d7a; display: block; margin-bottom: 8px;">📋 Détail des CD :</strong>
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-              <thead>
-                <tr style="background: #f5f5f5; border-bottom: 2px solid #003d7a;">
-                  <th style="padding: 8px; text-align: left; font-weight: 600;">Date</th>
-                  <th style="padding: 8px; text-align: left; font-weight: 600;">Opérateur</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Type CD</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">D1</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Archi</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">CQ</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Pannes</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Temps</th>
+          <table class="cd-details-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Opérateur</th>
+                <th>Type CD</th>
+                <th style="text-align: center;">D1</th>
+                <th style="text-align: center;">Archi</th>
+                <th style="text-align: center;">CQ</th>
+                <th style="text-align: center;">Pannes</th>
+                <th style="text-align: center;">Temps</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stats.cdDetails.map(cd => `
+                <tr>
+                  <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                  <td>${cd.operateur}</td>
+                  <td>${cd.typeCD}</td>
+                  <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
+                  <td style="text-align: center;">${cd.nbArchi || '-'}</td>
+                  <td style="text-align: center;">${cd.nbCQ || '-'}</td>
+                  <td style="text-align: center;">${cd.nbPannes || '-'}</td>
+                  <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                ${stats.cdDetails.map(cd => `
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 6px;">${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
-                    <td style="padding: 6px;">${cd.operateur}</td>
-                    <td style="padding: 6px; text-align: center;">${cd.typeCD}</td>
-                    <td style="padding: 6px; text-align: center;">${cd.conformiteD1 === 'ok' ? '✅' : '❌'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbArchi > 0 ? '#f5576c' : '#999'};">${cd.nbArchi || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbCQ > 0 ? '#f5576c' : '#999'};">${cd.nbCQ || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbPannes > 0 ? '#fa709a' : '#999'};">${cd.nbPannes || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.tempsTotal > 0 ? '#fa709a' : '#999'};">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
       `;
     });
 
     html += `
-        </div>
-        <div style="margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
+        <div class="footer">
           Rapport généré le ${new Date().toLocaleString('fr-FR')} - Michelin Gravanches Dashboard CD
         </div>
       </body>
@@ -514,19 +595,24 @@ class PrintReportsManager {
       return;
     }
 
-    const operateur = dbData.operateurs.find(op => op.id === operateurId);
+    const operateur = dbData.operateurs.find(op => String(op.id) === String(operateurId));
     if (!operateur) {
-      alert('Opérateur non trouvé');
+      alert('Opérateur non trouvé (ID: ' + operateurId + ')');
+      console.error('❌ Opérateur non trouvé. IDs disponibles:', dbData.operateurs.map(op => op.id + ' (' + op.nom + ')').join(', '));
       return;
     }
 
     console.log('👤 Opérateur trouvé:', operateur.nom);
 
-    // Filtrer les CD de l'opérateur sur la période
+    // Filtrer les CD de l'opérateur sur la période avec conversion de type
     const cdsFiltered = dbData.cd.filter(cd => {
-      console.log('🔍 Vérification CD:', cd.id, 'operateurId:', cd.operateurId, 'recherché:', operateurId);
+      // Convertir les deux IDs en string pour éviter les problèmes de type
+      const cdOperateurId = String(cd.operateurId);
+      const searchOperateurId = String(operateurId);
 
-      if (cd.operateurId !== operateurId) return false;
+      console.log('🔍 Vérification CD:', cd.id, 'operateurId:', cdOperateurId, 'recherché:', searchOperateurId, 'match:', cdOperateurId === searchOperateurId);
+
+      if (cdOperateurId !== searchOperateurId) return false;
 
       const cdDate = new Date(cd.date);
       const start = startDate ? new Date(startDate) : new Date(0);
@@ -539,7 +625,7 @@ class PrintReportsManager {
 
     if (cdsFiltered.length === 0) {
       // Afficher des détails pour diagnostiquer
-      const allOperateurIds = dbData.cd.map(cd => cd.operateurId).filter((v, i, a) => a.indexOf(v) === i);
+      const allOperateurIds = [...new Set(dbData.cd.map(cd => String(cd.operateurId)))];
       alert('Aucun CD trouvé pour cet opérateur sur cette période\n\n' +
             'Opérateur recherché: ' + operateur.nom + ' (ID: ' + operateurId + ')\n' +
             'Période: ' + (startDate || 'début') + ' → ' + (endDate || 'fin') + '\n\n' +
@@ -567,216 +653,287 @@ class PrintReportsManager {
       <head>
         <meta charset="UTF-8">
         <title>Rapport ${periodLabel} - ${startFormatted} au ${endFormatted}</title>
-        <link rel="stylesheet" href="print-reports.css">
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003d7a; padding-bottom: 15px; }
-          .print-header h1 { color: #003d7a; margin: 5px 0; }
-          .print-header .date { color: #666; font-size: 18px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
-          .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-          .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-          .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-          .stat-card.red { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-          .stat-card .value { font-size: 48px; font-weight: bold; margin: 10px 0; }
-          .stat-card .label { font-size: 14px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
-          .stat-card .percentage { font-size: 20px; margin-top: 5px; opacity: 0.9; }
-          .section-title { color: #003d7a; font-size: 24px; font-weight: bold; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #003d7a; }
-          .pannes-chart { margin: 20px 0; }
-          .panne-bar { margin: 10px 0; }
-          .panne-bar .panne-label { font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
-          .panne-bar .bar-container { background: #e0e0e0; height: 30px; border-radius: 5px; position: relative; overflow: hidden; }
-          .panne-bar .bar-fill { background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); height: 100%; display: flex; align-items: center; padding-left: 10px; color: white; font-weight: bold; transition: width 0.3s; }
-          .machines-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; page-break-inside: avoid; }
-          .machine-card { border: 2px solid #ddd; border-radius: 10px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); page-break-inside: avoid; }
-          .machine-card h3 { color: #003d7a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
-          .machine-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 15px 0; }
-          .machine-stat { text-align: center; padding: 10px; background: #f5f5f5; border-radius: 5px; }
-          .machine-stat .value { font-size: 24px; font-weight: bold; color: #003d7a; }
-          .machine-stat .label { font-size: 12px; color: #666; margin-top: 5px; }
-          .machine-pannes { margin-top: 15px; }
-          .machine-panne-item { display: flex; justify-content: space-between; padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 5px; border-left: 4px solid #fa709a; }
-          .machine-panne-item .code { font-weight: bold; color: #003d7a; }
-          .machine-panne-item .temps { color: #fa709a; font-weight: bold; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #fff;
+            color: #333;
+            font-size: 11pt;
+          }
+          .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #000;
+          }
+          .report-header h1 {
+            font-size: 20pt;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 8px;
+          }
+          .report-header .date {
+            font-size: 12pt;
+            color: #555;
+            margin: 5px 0;
+          }
+          .report-header .subtitle {
+            font-size: 10pt;
+            color: #777;
+          }
+
+          .section-title {
+            font-size: 14pt;
+            font-weight: 600;
+            color: #000;
+            margin: 25px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #666;
+            text-transform: uppercase;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #fff;
+          }
+
+          th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 10pt;
+            border: 1px solid #999;
+            color: #000;
+          }
+
+          td {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            font-size: 10pt;
+            color: #333;
+          }
+
+          tbody tr:nth-child(even) {
+            background: #fafafa;
+          }
+
+          .stats-table th {
+            text-align: center;
+            background: #e0e0e0;
+          }
+
+          .stats-table td {
+            text-align: center;
+            font-weight: 500;
+          }
+
+          .number-cell {
+            font-weight: 600;
+            color: #000;
+          }
+
+          .machine-section {
+            margin: 30px 0;
+            page-break-inside: avoid;
+          }
+
+          .machine-title {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #000;
+            margin: 20px 0 10px 0;
+            padding: 8px 12px;
+            background: #e8e8e8;
+            border-left: 4px solid #000;
+          }
+
+          .cd-details-table th {
+            font-size: 9pt;
+            padding: 6px;
+          }
+
+          .cd-details-table td {
+            font-size: 9pt;
+            padding: 5px;
+          }
+
+          .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #999;
+            text-align: center;
+            font-size: 9pt;
+            color: #777;
+          }
+
           @media print {
-            .machines-grid { page-break-inside: avoid; }
-            .machine-card { page-break-inside: avoid; }
+            body { margin: 10mm; }
+            .machine-section { page-break-inside: avoid; }
+            @page { size: A4; margin: 15mm; }
           }
         </style>
       </head>
       <body>
-        <div class="print-header">
-          <h1>📊 RAPPORT D'ANALYSE ${periodLabel.toUpperCase()}</h1>
+        <div class="report-header">
+          <h1>RAPPORT D'ANALYSE ${periodLabel.toUpperCase()}</h1>
           <div class="date">Du ${startFormatted} au ${endFormatted}</div>
-          <div style="margin-top: 10px; color: #666; font-size: 14px;">Michelin Gravanches - Dashboard CD</div>
+          <div class="subtitle">Michelin Gravanches - Dashboard CD</div>
         </div>
 
-        <div class="section-title">📈 Vue d'ensemble</div>
-        <div class="stats-grid">
-          <div class="stat-card blue">
-            <div class="label">Total CD</div>
-            <div class="value">${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card green">
-            <div class="label">Taux D1</div>
-            <div class="value">${globalStats.tauxD1}%</div>
-            <div class="percentage">${globalStats.totalD1} / ${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);">
-            <div class="label">NIV 1 (Sans Archi)</div>
-            <div class="value">${globalStats.tauxNiv1}%</div>
-            <div class="percentage">${globalStats.totalNiv1} / ${globalStats.totalCD}</div>
-          </div>
-          <div class="stat-card orange">
-            <div class="label">Retours Archi</div>
-            <div class="value">${globalStats.totalArchi}</div>
-            <div class="percentage">${globalStats.tauxArchi}% des CD</div>
-          </div>
-          <div class="stat-card red">
-            <div class="label">CQ Après CD</div>
-            <div class="value">${globalStats.totalCQ}</div>
-            <div class="percentage">${globalStats.tauxCQ}% des CD</div>
-          </div>
-        </div>
+        <div class="section-title">Vue d'ensemble</div>
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Total CD</th>
+              <th>D1 Moyen (heures)</th>
+              <th>NIV 1 (%)</th>
+              <th>Retours Archi</th>
+              <th>CQ après CD</th>
+              <th>Pannes</th>
+              <th>Temps Pannes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="number-cell">${globalStats.totalCD}</td>
+              <td class="number-cell">${globalStats.moyenneD1Heures}h</td>
+              <td class="number-cell">${globalStats.tauxNiv1}% (${globalStats.totalNiv1})</td>
+              <td class="number-cell">${globalStats.totalArchi}</td>
+              <td class="number-cell">${globalStats.totalCQ}</td>
+              <td class="number-cell">${globalStats.totalPannes}</td>
+              <td class="number-cell">${this.formatMinutes(globalStats.tempsPannesTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
 
         ${Object.keys(globalStats.archiByLevel).length > 0 ? `
-          <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #f5576c;">
-            <h3 style="margin: 0 0 15px 0; color: #003d7a; font-size: 18px;">📊 Détail Retours Archi par Niveau</h3>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-              ${Object.entries(globalStats.archiByLevel).map(([niveau, count]) => {
-                const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : `Niveau ${niveau}`;
-                const niveauColor = niveau === '2' || niveau === '2_grave' || niveau === '2_cc' ? '#f5576c' : '#ff9800';
-                return `
-                  <div style="text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border-top: 3px solid ${niveauColor};">
-                    <div style="font-size: 32px; font-weight: bold; color: ${niveauColor};">${count}</div>
-                    <div style="font-size: 14px; color: #666; margin-top: 5px;">${niveauLabel}</div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
+          <div class="section-title">Détail Retours Archi par Niveau</div>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                ${Object.entries(globalStats.archiByLevel).map(([niveau]) => {
+                  const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : 'Niveau ' + niveau;
+                  return '<th>' + niveauLabel + '</th>';
+                }).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                ${Object.entries(globalStats.archiByLevel).map(([, count]) => {
+                  return '<td class="number-cell">' + count + '</td>';
+                }).join('')}
+              </tr>
+            </tbody>
+          </table>
         ` : ''}
 
-        <div class="section-title">⚠️ Analyse des Pannes (${globalStats.totalPannes} total - ${this.formatMinutes(globalStats.tempsPannesTotal)})</div>
-        <div class="pannes-chart">
+        <div class="section-title">Analyse des Pannes</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th style="text-align: center; width: 100px;">Occurrences</th>
+              <th style="text-align: center; width: 120px;">Temps Total</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
 
-    // Graphique des pannes
+    // Pannes triées par occurrences
     const pannesArray = Object.entries(globalStats.pannesDetail).sort((a, b) => b[1].count - a[1].count);
-    const maxPanneCount = pannesArray.length > 0 ? pannesArray[0][1].count : 1;
-
-    pannesArray.forEach(([code, data]) => {
-      const percentage = (data.count / maxPanneCount) * 100;
-      html += `
-        <div class="panne-bar">
-          <div class="panne-label">
-            <span><strong>${code}</strong> - ${data.description}</span>
-            <span>${data.count}x - ${this.formatMinutes(data.tempsTotal)}</span>
-          </div>
-          <div class="bar-container">
-            <div class="bar-fill" style="width: ${percentage}%">${data.count}</div>
-          </div>
-        </div>
-      `;
-    });
+    if (pannesArray.length > 0) {
+      pannesArray.forEach(([code, data]) => {
+        html += `
+          <tr>
+            <td style="font-weight: 600;">${code}</td>
+            <td>${data.description}</td>
+            <td style="text-align: center;">${data.count}</td>
+            <td style="text-align: center;">${this.formatMinutes(data.tempsTotal)}</td>
+          </tr>
+        `;
+      });
+    } else {
+      html += '<tr><td colspan="4" style="text-align: center; color: #999;">Aucune panne</td></tr>';
+    }
 
     html += `
-        </div>
+          </tbody>
+        </table>
 
-        <div class="section-title" style="page-break-before: always;">🏭 Analyse par Machine</div>
-        <div class="machines-grid">
+        <div class="section-title" style="page-break-before: always;">Analyse par Machine</div>
     `;
 
     // Stats par machine
     Object.entries(machineStats).sort((a, b) => b[1].totalCD - a[1].totalCD).forEach(([machineName, stats]) => {
-      const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
+      const moyenneD1 = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
 
       html += `
-        <div class="machine-card">
-          <h3>🏭 ${machineName} <span style="font-weight: normal; font-size: 14px; color: #666;">(${stats.totalCD} CD)</span></h3>
+        <div class="machine-section">
+          <div class="machine-title">${machineName} (${stats.totalCD} CD)</div>
 
-          <!-- Stats globales -->
-          <div class="machine-stats">
-            <div class="machine-stat">
-              <div class="value">${stats.totalCD}</div>
-              <div class="label">Total CD</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${tauxD1}%</div>
-              <div class="label">Taux D1</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalArchi}</div>
-              <div class="label">Retours Archi</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalCQ}</div>
-              <div class="label">CQ après CD</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${stats.totalPannes}</div>
-              <div class="label">Pannes</div>
-            </div>
-            <div class="machine-stat">
-              <div class="value">${this.formatMinutes(stats.tempsPannes)}</div>
-              <div class="label">Temps Pannes</div>
-            </div>
-          </div>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Total CD</th>
+                <th>D1 Moyen (h)</th>
+                <th>Retours Archi</th>
+                <th>CQ après CD</th>
+                <th>Pannes</th>
+                <th>Temps Pannes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="number-cell">${stats.totalCD}</td>
+                <td class="number-cell">${moyenneD1}h</td>
+                <td class="number-cell">${stats.totalArchi}</td>
+                <td class="number-cell">${stats.totalCQ}</td>
+                <td class="number-cell">${stats.totalPannes}</td>
+                <td class="number-cell">${this.formatMinutes(stats.tempsPannes)}</td>
+              </tr>
+            </tbody>
+          </table>
 
-          <!-- Détail des pannes -->
-          ${stats.totalPannes > 0 ? `
-            <div style="margin: 15px 0;">
-              <strong style="color: #003d7a; display: block; margin-bottom: 8px;">⚠️ Détail des Pannes :</strong>
-              ${Object.entries(stats.pannesDetail).map(([code, data]) => `
-                <div class="machine-panne-item">
-                  <span class="code">${code}</span>
-                  <span>${data.count}x</span>
-                  <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-
-          <!-- Liste détaillée des CD -->
-          <div style="margin-top: 15px;">
-            <strong style="color: #003d7a; display: block; margin-bottom: 8px;">📋 Détail des CD :</strong>
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-              <thead>
-                <tr style="background: #f5f5f5; border-bottom: 2px solid #003d7a;">
-                  <th style="padding: 8px; text-align: left; font-weight: 600;">Date</th>
-                  <th style="padding: 8px; text-align: left; font-weight: 600;">Opérateur</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Type CD</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">D1</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Archi</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">CQ</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Pannes</th>
-                  <th style="padding: 8px; text-align: center; font-weight: 600;">Temps</th>
+          <table class="cd-details-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Opérateur</th>
+                <th>Type CD</th>
+                <th style="text-align: center;">D1</th>
+                <th style="text-align: center;">Archi</th>
+                <th style="text-align: center;">CQ</th>
+                <th style="text-align: center;">Pannes</th>
+                <th style="text-align: center;">Temps</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stats.cdDetails.map(cd => `
+                <tr>
+                  <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                  <td>${cd.operateur}</td>
+                  <td>${cd.typeCD}</td>
+                  <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
+                  <td style="text-align: center;">${cd.nbArchi || '-'}</td>
+                  <td style="text-align: center;">${cd.nbCQ || '-'}</td>
+                  <td style="text-align: center;">${cd.nbPannes || '-'}</td>
+                  <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                ${stats.cdDetails.map(cd => `
-                  <tr style="border-bottom: 1px solid #e0e0e0;">
-                    <td style="padding: 6px;">${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
-                    <td style="padding: 6px;">${cd.operateur}</td>
-                    <td style="padding: 6px; text-align: center;">${cd.typeCD}</td>
-                    <td style="padding: 6px; text-align: center;">${cd.conformiteD1 === 'ok' ? '✅' : '❌'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbArchi > 0 ? '#f5576c' : '#999'};">${cd.nbArchi || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbCQ > 0 ? '#f5576c' : '#999'};">${cd.nbCQ || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.nbPannes > 0 ? '#fa709a' : '#999'};">${cd.nbPannes || '-'}</td>
-                    <td style="padding: 6px; text-align: center; color: ${cd.tempsTotal > 0 ? '#fa709a' : '#999'};">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
       `;
     });
 
     html += `
-        </div>
-        <div style="margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
+        <div class="footer">
           Rapport généré le ${new Date().toLocaleString('fr-FR')} - Michelin Gravanches Dashboard CD
         </div>
       </body>
@@ -792,23 +949,20 @@ class PrintReportsManager {
       totalD1: 0,
       totalArchi: 0,
       totalCQ: 0,
-      tauxD1: 0,
-      tauxArchi: 0,
-      tauxCQ: 0,
-      scorePerformance: 0,
-      detailScore: {
-        baseCD: 0,
-        penaliteArchi: 0,
-        penaliteCQ: 0,
-        bonusD1: 0
-      },
+      tempsD1TotalMinutes: 0,
+      moyenneD1Heures: 0,
       archiByLevel: {},
       cqDetail: {},
       pannesCount: 0
     };
 
     cds.forEach(cd => {
-      // D1
+      // D1 - Temps moyen
+      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
+        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
+        stats.tempsD1TotalMinutes += tempsTotal;
+      }
+
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
       // Retours Archi
@@ -851,41 +1005,15 @@ class PrintReportsManager {
       }
     });
 
-    // Calculer les taux
-    stats.tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
-    stats.tauxArchi = stats.totalCD > 0 ? ((stats.totalArchi / stats.totalCD) * 100).toFixed(1) : 0;
-    stats.tauxCQ = stats.totalCD > 0 ? ((stats.totalCQ / stats.totalCD) * 100).toFixed(1) : 0;
-
-    // Calculer le score de performance (formule simplifiée)
-    // Base : nombre de CD
-    stats.detailScore.baseCD = stats.totalCD * 10;
-
-    // Pénalités pour retours archi (selon niveau)
-    Object.entries(stats.archiByLevel).forEach(([niveau, count]) => {
-      if (niveau === '2' || niveau === '2_grave' || niveau === '2_cc') {
-        stats.detailScore.penaliteArchi += count * 5;
-      } else if (niveau === '3') {
-        stats.detailScore.penaliteArchi += count * 2;
-      }
-    });
-
-    // Pénalités pour CQ
-    stats.detailScore.penaliteCQ = stats.totalCQ * 3;
-
-    // Bonus pour D1
-    stats.detailScore.bonusD1 = stats.totalD1 * 5;
-
-    // Score final
-    stats.scorePerformance = stats.detailScore.baseCD
-                            - stats.detailScore.penaliteArchi
-                            - stats.detailScore.penaliteCQ
-                            + stats.detailScore.bonusD1;
+    // Calculer la moyenne D1 en heures
+    stats.moyenneD1Heures = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
 
     return stats;
   }
 
   generatePerformanceReportHTML(operateur, stats, startDate, endDate) {
     const periodStr = this.getPeriodString(startDate, endDate);
+    const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
 
     let html = `
       <!DOCTYPE html>
@@ -893,207 +1021,174 @@ class PrintReportsManager {
       <head>
         <meta charset="UTF-8">
         <title>Rapport Performance - ${operateur.nom}</title>
-        <link rel="stylesheet" href="print-reports.css">
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-          .print-header { text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; }
-          .print-header h1 { margin: 5px 0; font-size: 32px; }
-          .print-header .operator { font-size: 24px; margin: 10px 0; font-weight: bold; }
-          .print-header .period { opacity: 0.9; font-size: 16px; }
-          .score-banner { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; text-align: center; padding: 40px; border-radius: 15px; margin: 30px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-          .score-banner .score-value { font-size: 72px; font-weight: bold; margin: 10px 0; }
-          .score-banner .score-label { font-size: 20px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.9; }
-          .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 30px 0; }
-          .metric-card { background: white; padding: 25px; border-radius: 10px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 5px solid #667eea; }
-          .metric-card.green { border-top-color: #38ef7d; }
-          .metric-card.orange { border-top-color: #f5576c; }
-          .metric-card.blue { border-top-color: #00f2fe; }
-          .metric-card .value { font-size: 48px; font-weight: bold; color: #003d7a; margin: 10px 0; }
-          .metric-card .label { font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
-          .metric-card .percentage { font-size: 18px; color: #999; margin-top: 5px; }
-          .section-title { color: #003d7a; font-size: 24px; font-weight: bold; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 3px solid #003d7a; }
-          .score-detail { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 20px 0; }
-          .score-calculation { margin: 15px 0; }
-          .score-line { display: flex; justify-content: space-between; padding: 15px; margin: 10px 0; border-radius: 5px; font-size: 18px; }
-          .score-line.base { background: #e3f2fd; border-left: 5px solid #2196f3; }
-          .score-line.penalty { background: #ffebee; border-left: 5px solid #f44336; }
-          .score-line.bonus { background: #e8f5e9; border-left: 5px solid #4caf50; }
-          .score-line.total { background: #f3e5f5; border-left: 5px solid #9c27b0; font-weight: bold; font-size: 20px; }
-          .score-line .label { font-weight: 600; }
-          .score-line .value { font-weight: bold; font-size: 20px; }
-          .score-line .formula { font-size: 14px; color: #666; margin-left: 10px; font-style: italic; }
-          .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
-          .detail-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-          .detail-card h3 { color: #003d7a; margin-top: 0; font-size: 18px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
-          .detail-item { display: flex; justify-content: space-between; padding: 10px; margin: 5px 0; background: #f9f9f9; border-radius: 5px; border-left: 4px solid #667eea; }
-          .detail-item .item-label { font-weight: 500; color: #003d7a; }
-          .detail-item .item-value { font-weight: bold; color: #f5576c; }
-          .visual-bars { margin: 20px 0; }
-          .visual-bar { margin: 15px 0; }
-          .visual-bar .bar-label { font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; color: #003d7a; }
-          .visual-bar .bar-container { background: #e0e0e0; height: 35px; border-radius: 8px; overflow: hidden; position: relative; }
-          .visual-bar .bar-fill { height: 100%; display: flex; align-items: center; padding-left: 15px; color: white; font-weight: bold; font-size: 16px; transition: width 0.5s; }
-          .visual-bar .bar-fill.green { background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%); }
-          .visual-bar .bar-fill.orange { background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%); }
-          .visual-bar .bar-fill.blue { background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #fff;
+            color: #333;
+            font-size: 11pt;
+          }
+          .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #000;
+          }
+          .report-header h1 {
+            font-size: 20pt;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 8px;
+          }
+          .report-header .operator {
+            font-size: 16pt;
+            font-weight: 600;
+            color: #000;
+            margin: 10px 0;
+          }
+          .report-header .period {
+            font-size: 11pt;
+            color: #555;
+          }
+
+          .section-title {
+            font-size: 14pt;
+            font-weight: 600;
+            color: #000;
+            margin: 25px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #666;
+            text-transform: uppercase;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #fff;
+          }
+
+          th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 10pt;
+            border: 1px solid #999;
+            color: #000;
+          }
+
+          td {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            font-size: 10pt;
+            color: #333;
+            text-align: center;
+          }
+
+          tbody tr:nth-child(even) {
+            background: #fafafa;
+          }
+
+          .number-cell {
+            font-weight: 600;
+            color: #000;
+            font-size: 12pt;
+          }
+
+          .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #999;
+            text-align: center;
+            font-size: 9pt;
+            color: #777;
+          }
+
           @media print {
-            body { background: white; }
-            .score-detail, .detail-card, .metric-card { box-shadow: none; border: 1px solid #ddd; }
+            body { margin: 10mm; }
+            @page { size: A4; margin: 15mm; }
           }
         </style>
       </head>
       <body>
-        <div class="print-header">
-          <h1>🎯 RAPPORT DE PERFORMANCE</h1>
+        <div class="report-header">
+          <h1>RAPPORT DE PERFORMANCE</h1>
           <div class="operator">${operateur.nom}</div>
           <div class="period">${periodStr}</div>
         </div>
 
-        <div class="score-banner">
-          <div class="score-label">Score de Performance</div>
-          <div class="score-value">${stats.scorePerformance}</div>
-          <div style="font-size: 16px; margin-top: 10px; opacity: 0.9;">points</div>
-        </div>
+        <div class="section-title">Indicateurs de Performance</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Total CD</th>
+              <th>D1 Moyen (heures)</th>
+              <th>Taux D1 (%)</th>
+              <th>Retours Archi</th>
+              <th>CQ après CD</th>
+              <th>Pannes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="number-cell">${stats.totalCD}</td>
+              <td class="number-cell">${stats.moyenneD1Heures}h</td>
+              <td class="number-cell">${tauxD1}%</td>
+              <td class="number-cell">${stats.totalArchi}</td>
+              <td class="number-cell">${stats.totalCQ}</td>
+              <td class="number-cell">${stats.pannesCount}</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <div class="metrics-grid">
-          <div class="metric-card blue">
-            <div class="label">Total CD</div>
-            <div class="value">${stats.totalCD}</div>
-          </div>
-          <div class="metric-card green">
-            <div class="label">Taux D1</div>
-            <div class="value">${stats.tauxD1}%</div>
-            <div class="percentage">${stats.totalD1} / ${stats.totalCD}</div>
-          </div>
-          <div class="metric-card orange">
-            <div class="label">Retours Archi</div>
-            <div class="value">${stats.totalArchi}</div>
-            <div class="percentage">${stats.tauxArchi}% des CD</div>
-          </div>
-          <div class="metric-card">
-            <div class="label">CQ après CD</div>
-            <div class="value">${stats.totalCQ}</div>
-            <div class="percentage">${stats.tauxCQ}% des CD</div>
-          </div>
-        </div>
+        ${Object.keys(stats.archiByLevel).length > 0 ? `
+          <div class="section-title">Détail Retours Archi par Niveau</div>
+          <table>
+            <thead>
+              <tr>
+                ${Object.entries(stats.archiByLevel).map(([niveau]) => {
+                  const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : 'Niveau ' + niveau;
+                  return '<th>' + niveauLabel + '</th>';
+                }).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                ${Object.entries(stats.archiByLevel).map(([, count]) => {
+                  return '<td class="number-cell">' + count + '</td>';
+                }).join('')}
+              </tr>
+            </tbody>
+          </table>
+        ` : '<p style="text-align: center; color: #999; margin: 20px 0;">Aucun retour archi</p>'}
 
-        <div class="section-title">📊 Détail du Calcul du Score</div>
-        <div class="score-detail">
-          <div class="score-calculation">
-            <div class="score-line base">
-              <span class="label">
-                🏭 Base CD
-                <span class="formula">(${stats.totalCD} CD × 10 points)</span>
-              </span>
-              <span class="value">+${stats.detailScore.baseCD}</span>
-            </div>
-            <div class="score-line bonus">
-              <span class="label">
-                ✅ Bonus D1
-                <span class="formula">(${stats.totalD1} D1 × 5 points)</span>
-              </span>
-              <span class="value">+${stats.detailScore.bonusD1}</span>
-            </div>
-            <div class="score-line penalty">
-              <span class="label">
-                ⚠️ Pénalité Retours Archi
-                <span class="formula">(Niv 2: ×5, Niv 3: ×2)</span>
-              </span>
-              <span class="value">-${stats.detailScore.penaliteArchi}</span>
-            </div>
-            <div class="score-line penalty">
-              <span class="label">
-                🔍 Pénalité CQ après CD
-                <span class="formula">(${stats.totalCQ} CQ × 3 points)</span>
-              </span>
-              <span class="value">-${stats.detailScore.penaliteCQ}</span>
-            </div>
-            <div class="score-line total">
-              <span class="label">🎯 SCORE FINAL</span>
-              <span class="value">${stats.scorePerformance}</span>
-            </div>
-          </div>
-        </div>
+        ${Object.keys(stats.cqDetail).length > 0 ? `
+          <div class="section-title">Détail CQ après CD</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left;">Code CQ</th>
+                <th style="text-align: left;">Description</th>
+                <th style="width: 150px;">Occurrences</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(stats.cqDetail).sort((a, b) => b[1].count - a[1].count).map(([code, data]) => `
+                <tr>
+                  <td style="text-align: left; font-weight: 600;">${code}</td>
+                  <td style="text-align: left;">${data.description}</td>
+                  <td class="number-cell">${data.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '<p style="text-align: center; color: #999; margin: 20px 0;">Aucun CQ après CD</p>'}
 
-        <div class="section-title">📈 Indicateurs Visuels</div>
-        <div class="visual-bars">
-          <div class="visual-bar">
-            <div class="bar-label">
-              <span>Taux D1 (Conformité Premier Essai)</span>
-              <span>${stats.tauxD1}%</span>
-            </div>
-            <div class="bar-container">
-              <div class="bar-fill green" style="width: ${stats.tauxD1}%">${stats.totalD1} / ${stats.totalCD}</div>
-            </div>
-          </div>
-          <div class="visual-bar">
-            <div class="bar-label">
-              <span>Retours Archi (à minimiser)</span>
-              <span>${stats.tauxArchi}%</span>
-            </div>
-            <div class="bar-container">
-              <div class="bar-fill orange" style="width: ${Math.min(stats.tauxArchi, 100)}%">${stats.totalArchi} retours</div>
-            </div>
-          </div>
-          <div class="visual-bar">
-            <div class="bar-label">
-              <span>CQ après CD (à minimiser)</span>
-              <span>${stats.tauxCQ}%</span>
-            </div>
-            <div class="bar-container">
-              <div class="bar-fill blue" style="width: ${Math.min(stats.tauxCQ, 100)}%">${stats.totalCQ} CQ</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-title">🔍 Détails par Catégorie</div>
-        <div class="detail-grid">
-          <div class="detail-card">
-            <h3>Retours Archi par Niveau</h3>
-    `;
-
-    if (Object.keys(stats.archiByLevel).length > 0) {
-      Object.entries(stats.archiByLevel).sort((a, b) => b[1] - a[1]).forEach(([niveau, count]) => {
-        const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : `Niveau ${niveau}`;
-        html += `
-          <div class="detail-item">
-            <span class="item-label">${niveauLabel}</span>
-            <span class="item-value">${count}</span>
-          </div>
-        `;
-      });
-    } else {
-      html += `<div style="text-align: center; color: #999; padding: 20px;">Aucun retour archi</div>`;
-    }
-
-    html += `
-          </div>
-          <div class="detail-card">
-            <h3>CQ après CD (Top)</h3>
-    `;
-
-    const cqArray = Object.entries(stats.cqDetail).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
-    if (cqArray.length > 0) {
-      cqArray.forEach(([code, data]) => {
-        html += `
-          <div class="detail-item">
-            <span class="item-label">${code}</span>
-            <span class="item-value">${data.count}</span>
-          </div>
-        `;
-      });
-    } else {
-      html += `<div style="text-align: center; color: #999; padding: 20px;">Aucun CQ après CD</div>`;
-    }
-
-    html += `
-          </div>
-        </div>
-
-        <div style="margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 2px solid #ddd; padding-top: 20px;">
-          <p><strong>Formule de calcul du score :</strong></p>
-          <p>Score = (Nb CD × 10) + (Nb D1 × 5) - (Pénalités Archi) - (Nb CQ × 3)</p>
-          <p style="margin-top: 20px;">Rapport généré le ${new Date().toLocaleString('fr-FR')} - Michelin Gravanches Dashboard CD</p>
+        <div class="footer">
+          Rapport généré le ${new Date().toLocaleString('fr-FR')} - Michelin Gravanches Dashboard CD
         </div>
       </body>
       </html>
@@ -1151,7 +1246,7 @@ function openCustomDateReportModal() {
   const html = `
     <div class="modal" id="modalCustomDateReport" style="display: flex;">
       <div class="modal-content">
-        <h3>📅 Sélectionner une date pour le rapport</h3>
+        <h3>Sélectionner une date pour le rapport</h3>
         <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
           Le rapport J-1 sera généré pour la veille de la date sélectionnée
         </p>
@@ -1161,7 +1256,7 @@ function openCustomDateReportModal() {
         </div>
         <div class="modal-actions" style="margin-top: 20px;">
           <button class="btn btn--primary" onclick="generateCustomDateReport()">
-            🖨️ Générer le rapport
+            Générer le rapport
           </button>
           <button class="btn btn--secondary" onclick="closeCustomDateReportModal()">
             Annuler
@@ -1217,7 +1312,7 @@ function openPerformanceReportModal() {
   const html = `
     <div class="modal" id="modalPerformanceReport" style="display: flex;">
       <div class="modal-content modal-large">
-        <h3>🎯 Rapport de Performance Individuel</h3>
+        <h3>Rapport de Performance Individuel</h3>
         <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
           Générer un rapport de performance détaillé pour un opérateur sur une période donnée
         </p>
@@ -1242,13 +1337,13 @@ function openPerformanceReportModal() {
 
         <div style="margin-top: var(--space-12); padding: var(--space-12); background: var(--color-bg-1); border-radius: var(--radius-base); border-left: 4px solid var(--color-info);">
           <p style="margin: 0; color: var(--color-text-secondary); font-size: 14px;">
-            💡 <strong>Astuce :</strong> Laissez les dates vides pour générer un rapport sur toute la période disponible
+            Astuce : Laissez les dates vides pour générer un rapport sur toute la période disponible
           </p>
         </div>
 
         <div class="modal-actions" style="margin-top: var(--space-20);">
           <button class="btn btn--primary" onclick="generatePerformanceReportFromModal()">
-            🖨️ Générer le rapport
+            Générer le rapport
           </button>
           <button class="btn btn--secondary" onclick="closePerformanceReportModal()">
             Annuler
