@@ -1125,54 +1125,7 @@ class PrintReportsManager {
   }
 
   openPrintWindow(html, filename = null) {
-    // Générer le nom du fichier si non fourni
-    if (!filename) {
-      filename = `rapport-${new Date().toISOString().split('T')[0]}.pdf`;
-    }
-
-    // Vérifier si html2pdf est disponible
-    if (typeof html2pdf !== 'undefined') {
-      // Créer un iframe temporaire pour générer le PDF
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.left = '-9999px';
-      iframe.style.width = '297mm'; // A4 landscape width
-      iframe.style.height = '210mm'; // A4 landscape height
-      document.body.appendChild(iframe);
-
-      // Écrire le HTML dans l'iframe
-      const iframeDoc = iframe.contentWindow.document;
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-
-      // Options pour html2pdf
-      const opt = {
-        margin: [6, 6, 6, 6],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      };
-
-      // Attendre que le contenu soit chargé puis générer le PDF
-      setTimeout(() => {
-        html2pdf().set(opt).from(iframeDoc.body).save().then(() => {
-          document.body.removeChild(iframe);
-        }).catch(err => {
-          console.error('Erreur génération PDF:', err);
-          document.body.removeChild(iframe);
-          alert('Erreur lors de la génération du PDF. Ouverture de la fenêtre d\'impression...');
-          this.openPrintWindowFallback(html);
-        });
-      }, 500);
-    } else {
-      // Fallback: ouvrir fenêtre d'impression classique
-      this.openPrintWindowFallback(html);
-    }
-  }
-
-  openPrintWindowFallback(html) {
+    // Ouvrir fenêtre d'impression (mode paysage forcé dans le CSS)
     this.printWindow = window.open('', '_blank', 'width=1200,height=800');
     this.printWindow.document.write(html);
     this.printWindow.document.close();
