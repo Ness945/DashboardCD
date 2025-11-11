@@ -126,21 +126,14 @@ class PrintReportsManager {
       totalCQ: 0,
       totalPannes: 0,
       tempsPannesTotal: 0,
-      tempsD1TotalMinutes: 0, // Temps total D1 en minutes
-      moyenneD1Heures: 0, // Moyenne D1 en heures
+      tauxD1: 0, // Taux D1 en %
       tauxNiv1: 0,
       pannesDetail: {},
       archiByLevel: {} // Compteur par niveau d'archi
     };
 
     cds.forEach(cd => {
-      // D1 - Calcul du temps moyen
-      // Le temps D1 est calculé à partir du temps total des incidents
-      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
-        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
-        stats.tempsD1TotalMinutes += tempsTotal;
-      }
-
+      // D1 = conformité premier essai
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
       // Retours Archi et NIV 1
@@ -195,8 +188,8 @@ class PrintReportsManager {
       }
     });
 
-    // Calculer la moyenne D1 en heures
-    stats.moyenneD1Heures = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
+    // Calculer le taux D1 en %
+    stats.tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
     stats.tauxNiv1 = stats.totalCD > 0 ? ((stats.totalNiv1 / stats.totalCD) * 100).toFixed(1) : 0;
 
     return stats;
@@ -217,8 +210,7 @@ class PrintReportsManager {
           totalCQ: 0,
           totalPannes: 0,
           tempsPannes: 0,
-          tempsD1TotalMinutes: 0,
-          pannesDetail: {},
+          pannesDetail: {}, // Détail par code panne
           cdDetails: [] // Stocker tous les CD
         };
       }
@@ -226,14 +218,8 @@ class PrintReportsManager {
       const stats = machineStats[machine.nom];
       stats.totalCD++;
 
-      // Temps D1 pour cette machine
-      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
-        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
-        stats.tempsD1TotalMinutes += tempsTotal;
-      }
-
       // Stocker les détails du CD
-      stats.cdDetails.push({
+      const cdDetail = {
         id: cd.id,
         date: cd.date,
         operateur: dbData.operateurs.find(op => op.id === cd.operateurId)?.nom || 'N/A',
@@ -242,10 +228,9 @@ class PrintReportsManager {
         nbArchi: cd.codesQualite ? cd.codesQualite.length : 0,
         nbCQ: cd.codesCQ ? cd.codesCQ.length : 0,
         nbPannes: cd.codesIncident ? cd.codesIncident.length : 0,
-        tempsTotal: cd.codesIncident && cd.tempsImpactIncident
-          ? Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0)
-          : 0
-      });
+        tempsTotal: 0,
+        pannes: [] // Liste des pannes pour ce CD
+      };
 
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
@@ -257,12 +242,16 @@ class PrintReportsManager {
         stats.totalCQ += cd.codesCQ.length;
       }
 
+      // Pannes détaillées
       if (cd.codesIncident && cd.codesIncident.length > 0) {
         stats.totalPannes += cd.codesIncident.length;
 
         cd.codesIncident.forEach(codeId => {
           const code = dbData.codesIncident.find(c => c.id === codeId);
           if (code) {
+            const temps = (cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]) ? cd.tempsImpactIncident[codeId] : 0;
+
+            // Ajouter au détail global de la machine
             if (!stats.pannesDetail[code.code]) {
               stats.pannesDetail[code.code] = {
                 description: code.description,
@@ -271,15 +260,21 @@ class PrintReportsManager {
               };
             }
             stats.pannesDetail[code.code].count++;
+            stats.pannesDetail[code.code].temps += temps;
+            stats.tempsPannes += temps;
+            cdDetail.tempsTotal += temps;
 
-            if (cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]) {
-              const temps = cd.tempsImpactIncident[codeId];
-              stats.pannesDetail[code.code].temps += temps;
-              stats.tempsPannes += temps;
-            }
+            // Ajouter au détail du CD
+            cdDetail.pannes.push({
+              code: code.code,
+              description: code.description,
+              temps: temps
+            });
           }
         });
       }
+
+      stats.cdDetails.push(cdDetail);
     });
 
     return machineStats;
@@ -301,7 +296,7 @@ class PrintReportsManager {
             margin: 20px;
             background: #fff;
             color: #333;
-            font-size: 11pt;
+            font-size: 10pt;
           }
           .report-header {
             text-align: center;
@@ -310,26 +305,26 @@ class PrintReportsManager {
             border-bottom: 2px solid #000;
           }
           .report-header h1 {
-            font-size: 20pt;
+            font-size: 18pt;
             font-weight: 600;
             color: #000;
             margin-bottom: 8px;
           }
           .report-header .date {
-            font-size: 12pt;
+            font-size: 11pt;
             color: #555;
             margin: 5px 0;
           }
           .report-header .subtitle {
-            font-size: 10pt;
+            font-size: 9pt;
             color: #777;
           }
 
           .section-title {
-            font-size: 14pt;
+            font-size: 12pt;
             font-weight: 600;
             color: #000;
-            margin: 25px 0 10px 0;
+            margin: 20px 0 8px 0;
             padding-bottom: 5px;
             border-bottom: 1px solid #666;
             text-transform: uppercase;
@@ -338,24 +333,24 @@ class PrintReportsManager {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 10px 0;
             background: #fff;
           }
 
           th {
-            background: #f0f0f0;
-            padding: 10px;
+            background: #e8e8e8;
+            padding: 8px;
             text-align: left;
             font-weight: 600;
-            font-size: 10pt;
+            font-size: 9pt;
             border: 1px solid #999;
             color: #000;
           }
 
           td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             border: 1px solid #ccc;
-            font-size: 10pt;
+            font-size: 9pt;
             color: #333;
           }
 
@@ -365,7 +360,7 @@ class PrintReportsManager {
 
           .stats-table th {
             text-align: center;
-            background: #e0e0e0;
+            background: #d0d0d0;
           }
 
           .stats-table td {
@@ -379,43 +374,50 @@ class PrintReportsManager {
           }
 
           .machine-section {
-            margin: 30px 0;
+            margin: 20px 0;
             page-break-inside: avoid;
+            border: 1px solid #999;
+            padding: 10px;
+            background: #fafafa;
           }
 
           .machine-title {
-            font-size: 12pt;
+            font-size: 11pt;
             font-weight: 600;
             color: #000;
-            margin: 20px 0 10px 0;
-            padding: 8px 12px;
-            background: #e8e8e8;
+            margin: 0 0 10px 0;
+            padding: 6px 10px;
+            background: #d8d8d8;
             border-left: 4px solid #000;
           }
 
-          .cd-details-table th {
-            font-size: 9pt;
-            padding: 6px;
+          .pannes-section {
+            margin: 10px 0;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
           }
 
-          .cd-details-table td {
+          .pannes-title {
+            font-weight: 600;
             font-size: 9pt;
-            padding: 5px;
+            margin-bottom: 5px;
+            color: #000;
           }
 
           .footer {
-            margin-top: 40px;
-            padding-top: 15px;
+            margin-top: 30px;
+            padding-top: 10px;
             border-top: 1px solid #999;
             text-align: center;
-            font-size: 9pt;
+            font-size: 8pt;
             color: #777;
           }
 
           @media print {
-            body { margin: 10mm; }
+            body { margin: 10mm; font-size: 9pt; }
             .machine-section { page-break-inside: avoid; }
-            @page { size: A4; margin: 15mm; }
+            @page { size: A4; margin: 12mm; }
           }
         </style>
       </head>
@@ -431,7 +433,7 @@ class PrintReportsManager {
           <thead>
             <tr>
               <th>Total CD</th>
-              <th>D1 Moyen (heures)</th>
+              <th>Taux D1 (%)</th>
               <th>NIV 1 (%)</th>
               <th>Retours Archi</th>
               <th>CQ après CD</th>
@@ -442,7 +444,7 @@ class PrintReportsManager {
           <tbody>
             <tr>
               <td class="number-cell">${globalStats.totalCD}</td>
-              <td class="number-cell">${globalStats.moyenneD1Heures}h</td>
+              <td class="number-cell">${globalStats.tauxD1}% (${globalStats.totalD1}/${globalStats.totalCD})</td>
               <td class="number-cell">${globalStats.tauxNiv1}% (${globalStats.totalNiv1})</td>
               <td class="number-cell">${globalStats.totalArchi}</td>
               <td class="number-cell">${globalStats.totalCQ}</td>
@@ -473,14 +475,14 @@ class PrintReportsManager {
           </table>
         ` : ''}
 
-        <div class="section-title">Analyse des Pannes</div>
+        <div class="section-title">Analyse des Pannes Globales</div>
         <table>
           <thead>
             <tr>
               <th>Code</th>
               <th>Description</th>
-              <th style="text-align: center; width: 100px;">Occurrences</th>
-              <th style="text-align: center; width: 120px;">Temps Total</th>
+              <th style="text-align: center; width: 80px;">Occurrences</th>
+              <th style="text-align: center; width: 100px;">Temps Total</th>
             </tr>
           </thead>
           <tbody>
@@ -507,22 +509,22 @@ class PrintReportsManager {
           </tbody>
         </table>
 
-        <div class="section-title" style="page-break-before: always;">Analyse par Machine</div>
+        <div class="section-title" style="page-break-before: always;">Analyse Détaillée par Machine</div>
     `;
 
     // Stats par machine
     Object.entries(machineStats).sort((a, b) => b[1].totalCD - a[1].totalCD).forEach(([machineName, stats]) => {
-      const moyenneD1 = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
+      const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
 
       html += `
         <div class="machine-section">
-          <div class="machine-title">${machineName} (${stats.totalCD} CD)</div>
+          <div class="machine-title">${machineName} - ${stats.totalCD} CD effectués</div>
 
           <table class="stats-table">
             <thead>
               <tr>
                 <th>Total CD</th>
-                <th>D1 Moyen (h)</th>
+                <th>Taux D1 (%)</th>
                 <th>Retours Archi</th>
                 <th>CQ après CD</th>
                 <th>Pannes</th>
@@ -532,7 +534,7 @@ class PrintReportsManager {
             <tbody>
               <tr>
                 <td class="number-cell">${stats.totalCD}</td>
-                <td class="number-cell">${moyenneD1}h</td>
+                <td class="number-cell">${tauxD1}% (${stats.totalD1}/${stats.totalCD})</td>
                 <td class="number-cell">${stats.totalArchi}</td>
                 <td class="number-cell">${stats.totalCQ}</td>
                 <td class="number-cell">${stats.totalPannes}</td>
@@ -541,34 +543,65 @@ class PrintReportsManager {
             </tbody>
           </table>
 
-          <table class="cd-details-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Opérateur</th>
-                <th>Type CD</th>
-                <th style="text-align: center;">D1</th>
-                <th style="text-align: center;">Archi</th>
-                <th style="text-align: center;">CQ</th>
-                <th style="text-align: center;">Pannes</th>
-                <th style="text-align: center;">Temps</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stats.cdDetails.map(cd => `
+          ${Object.keys(stats.pannesDetail).length > 0 ? `
+            <div class="pannes-section">
+              <div class="pannes-title">Détail des Pannes pour cette Machine</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code Panne</th>
+                    <th>Description</th>
+                    <th style="text-align: center; width: 80px;">Nb</th>
+                    <th style="text-align: center; width: 100px;">Temps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.entries(stats.pannesDetail).sort((a, b) => b[1].count - a[1].count).map(([code, data]) => `
+                    <tr>
+                      <td style="font-weight: 600;">${code}</td>
+                      <td>${data.description}</td>
+                      <td style="text-align: center;">${data.count}</td>
+                      <td style="text-align: center;">${this.formatMinutes(data.temps)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 10px;">
+            <div style="font-weight: 600; font-size: 9pt; margin-bottom: 5px;">Liste Détaillée des CD</div>
+            <table style="font-size: 8pt;">
+              <thead>
                 <tr>
-                  <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
-                  <td>${cd.operateur}</td>
-                  <td>${cd.typeCD}</td>
-                  <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
-                  <td style="text-align: center;">${cd.nbArchi || '-'}</td>
-                  <td style="text-align: center;">${cd.nbCQ || '-'}</td>
-                  <td style="text-align: center;">${cd.nbPannes || '-'}</td>
-                  <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                  <th>Date</th>
+                  <th>Opérateur</th>
+                  <th>Type CD</th>
+                  <th style="text-align: center;">D1</th>
+                  <th style="text-align: center;">Archi</th>
+                  <th style="text-align: center;">CQ</th>
+                  <th style="text-align: center;">Pannes</th>
+                  <th style="text-align: center;">Temps</th>
+                  <th>Détail Pannes</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${stats.cdDetails.map(cd => `
+                  <tr>
+                    <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                    <td>${cd.operateur}</td>
+                    <td>${cd.typeCD}</td>
+                    <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
+                    <td style="text-align: center;">${cd.nbArchi || '-'}</td>
+                    <td style="text-align: center;">${cd.nbCQ || '-'}</td>
+                    <td style="text-align: center;">${cd.nbPannes || '-'}</td>
+                    <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                    <td>${cd.pannes.length > 0 ? cd.pannes.map(p => p.code + ' (' + this.formatMinutes(p.temps) + ')').join(', ') : '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     });
@@ -595,6 +628,12 @@ class PrintReportsManager {
       return;
     }
 
+    // Vérifier que operateurId est valide
+    if (!operateurId || operateurId === 'undefined' || operateurId === '') {
+      alert('ID opérateur invalide. Veuillez sélectionner un opérateur valide.');
+      return;
+    }
+
     const operateur = dbData.operateurs.find(op => String(op.id) === String(operateurId));
     if (!operateur) {
       alert('Opérateur non trouvé (ID: ' + operateurId + ')');
@@ -602,15 +641,21 @@ class PrintReportsManager {
       return;
     }
 
-    console.log('👤 Opérateur trouvé:', operateur.nom);
+    console.log('👤 Opérateur trouvé:', operateur.nom, 'ID:', operateur.id);
 
-    // Filtrer les CD de l'opérateur sur la période avec conversion de type
+    // Filtrer les CD de l'opérateur sur la période
+    // IMPORTANT : Filtrer d'abord les CD qui ont un operateurId valide
     const cdsFiltered = dbData.cd.filter(cd => {
-      // Convertir les deux IDs en string pour éviter les problèmes de type
+      // Ignorer les CD sans operateurId valide
+      if (!cd.operateurId || cd.operateurId === 'undefined') {
+        return false;
+      }
+
+      // Convertir les deux IDs en string pour comparaison
       const cdOperateurId = String(cd.operateurId);
       const searchOperateurId = String(operateurId);
 
-      console.log('🔍 Vérification CD:', cd.id, 'operateurId:', cdOperateurId, 'recherché:', searchOperateurId, 'match:', cdOperateurId === searchOperateurId);
+      console.log('🔍 CD:', cd.id, 'operateurId:', cdOperateurId, 'recherché:', searchOperateurId, 'match:', cdOperateurId === searchOperateurId);
 
       if (cdOperateurId !== searchOperateurId) return false;
 
@@ -625,11 +670,14 @@ class PrintReportsManager {
 
     if (cdsFiltered.length === 0) {
       // Afficher des détails pour diagnostiquer
-      const allOperateurIds = [...new Set(dbData.cd.map(cd => String(cd.operateurId)))];
+      const allOperateurIds = [...new Set(dbData.cd
+        .filter(cd => cd.operateurId && cd.operateurId !== 'undefined')
+        .map(cd => String(cd.operateurId)))];
+
       alert('Aucun CD trouvé pour cet opérateur sur cette période\n\n' +
             'Opérateur recherché: ' + operateur.nom + ' (ID: ' + operateurId + ')\n' +
             'Période: ' + (startDate || 'début') + ' → ' + (endDate || 'fin') + '\n\n' +
-            'IDs opérateurs trouvés dans les CD:\n' + allOperateurIds.join(', '));
+            'IDs opérateurs valides trouvés dans les CD:\n' + allOperateurIds.join(', '));
       return;
     }
 
@@ -644,6 +692,7 @@ class PrintReportsManager {
   }
 
   generatePeriodReportHTML(startDate, endDate, globalStats, machineStats, periodLabel) {
+    // Identique au rapport quotidien, juste avec une période différente
     const startFormatted = this.formatDate(startDate);
     const endFormatted = this.formatDate(endDate);
 
@@ -660,7 +709,7 @@ class PrintReportsManager {
             margin: 20px;
             background: #fff;
             color: #333;
-            font-size: 11pt;
+            font-size: 10pt;
           }
           .report-header {
             text-align: center;
@@ -669,26 +718,26 @@ class PrintReportsManager {
             border-bottom: 2px solid #000;
           }
           .report-header h1 {
-            font-size: 20pt;
+            font-size: 18pt;
             font-weight: 600;
             color: #000;
             margin-bottom: 8px;
           }
           .report-header .date {
-            font-size: 12pt;
+            font-size: 11pt;
             color: #555;
             margin: 5px 0;
           }
           .report-header .subtitle {
-            font-size: 10pt;
+            font-size: 9pt;
             color: #777;
           }
 
           .section-title {
-            font-size: 14pt;
+            font-size: 12pt;
             font-weight: 600;
             color: #000;
-            margin: 25px 0 10px 0;
+            margin: 20px 0 8px 0;
             padding-bottom: 5px;
             border-bottom: 1px solid #666;
             text-transform: uppercase;
@@ -697,24 +746,24 @@ class PrintReportsManager {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 10px 0;
             background: #fff;
           }
 
           th {
-            background: #f0f0f0;
-            padding: 10px;
+            background: #e8e8e8;
+            padding: 8px;
             text-align: left;
             font-weight: 600;
-            font-size: 10pt;
+            font-size: 9pt;
             border: 1px solid #999;
             color: #000;
           }
 
           td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             border: 1px solid #ccc;
-            font-size: 10pt;
+            font-size: 9pt;
             color: #333;
           }
 
@@ -724,7 +773,7 @@ class PrintReportsManager {
 
           .stats-table th {
             text-align: center;
-            background: #e0e0e0;
+            background: #d0d0d0;
           }
 
           .stats-table td {
@@ -738,43 +787,50 @@ class PrintReportsManager {
           }
 
           .machine-section {
-            margin: 30px 0;
+            margin: 20px 0;
             page-break-inside: avoid;
+            border: 1px solid #999;
+            padding: 10px;
+            background: #fafafa;
           }
 
           .machine-title {
-            font-size: 12pt;
+            font-size: 11pt;
             font-weight: 600;
             color: #000;
-            margin: 20px 0 10px 0;
-            padding: 8px 12px;
-            background: #e8e8e8;
+            margin: 0 0 10px 0;
+            padding: 6px 10px;
+            background: #d8d8d8;
             border-left: 4px solid #000;
           }
 
-          .cd-details-table th {
-            font-size: 9pt;
-            padding: 6px;
+          .pannes-section {
+            margin: 10px 0;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
           }
 
-          .cd-details-table td {
+          .pannes-title {
+            font-weight: 600;
             font-size: 9pt;
-            padding: 5px;
+            margin-bottom: 5px;
+            color: #000;
           }
 
           .footer {
-            margin-top: 40px;
-            padding-top: 15px;
+            margin-top: 30px;
+            padding-top: 10px;
             border-top: 1px solid #999;
             text-align: center;
-            font-size: 9pt;
+            font-size: 8pt;
             color: #777;
           }
 
           @media print {
-            body { margin: 10mm; }
+            body { margin: 10mm; font-size: 9pt; }
             .machine-section { page-break-inside: avoid; }
-            @page { size: A4; margin: 15mm; }
+            @page { size: A4; margin: 12mm; }
           }
         </style>
       </head>
@@ -790,7 +846,7 @@ class PrintReportsManager {
           <thead>
             <tr>
               <th>Total CD</th>
-              <th>D1 Moyen (heures)</th>
+              <th>Taux D1 (%)</th>
               <th>NIV 1 (%)</th>
               <th>Retours Archi</th>
               <th>CQ après CD</th>
@@ -801,7 +857,7 @@ class PrintReportsManager {
           <tbody>
             <tr>
               <td class="number-cell">${globalStats.totalCD}</td>
-              <td class="number-cell">${globalStats.moyenneD1Heures}h</td>
+              <td class="number-cell">${globalStats.tauxD1}% (${globalStats.totalD1}/${globalStats.totalCD})</td>
               <td class="number-cell">${globalStats.tauxNiv1}% (${globalStats.totalNiv1})</td>
               <td class="number-cell">${globalStats.totalArchi}</td>
               <td class="number-cell">${globalStats.totalCQ}</td>
@@ -832,20 +888,20 @@ class PrintReportsManager {
           </table>
         ` : ''}
 
-        <div class="section-title">Analyse des Pannes</div>
+        <div class="section-title">Analyse des Pannes Globales</div>
         <table>
           <thead>
             <tr>
               <th>Code</th>
               <th>Description</th>
-              <th style="text-align: center; width: 100px;">Occurrences</th>
-              <th style="text-align: center; width: 120px;">Temps Total</th>
+              <th style="text-align: center; width: 80px;">Occurrences</th>
+              <th style="text-align: center; width: 100px;">Temps Total</th>
             </tr>
           </thead>
           <tbody>
     `;
 
-    // Pannes triées par occurrences
+    // Pannes triées
     const pannesArray = Object.entries(globalStats.pannesDetail).sort((a, b) => b[1].count - a[1].count);
     if (pannesArray.length > 0) {
       pannesArray.forEach(([code, data]) => {
@@ -866,22 +922,22 @@ class PrintReportsManager {
           </tbody>
         </table>
 
-        <div class="section-title" style="page-break-before: always;">Analyse par Machine</div>
+        <div class="section-title" style="page-break-before: always;">Analyse Détaillée par Machine</div>
     `;
 
-    // Stats par machine
+    // Stats par machine (identique au rapport quotidien)
     Object.entries(machineStats).sort((a, b) => b[1].totalCD - a[1].totalCD).forEach(([machineName, stats]) => {
-      const moyenneD1 = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
+      const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
 
       html += `
         <div class="machine-section">
-          <div class="machine-title">${machineName} (${stats.totalCD} CD)</div>
+          <div class="machine-title">${machineName} - ${stats.totalCD} CD effectués</div>
 
           <table class="stats-table">
             <thead>
               <tr>
                 <th>Total CD</th>
-                <th>D1 Moyen (h)</th>
+                <th>Taux D1 (%)</th>
                 <th>Retours Archi</th>
                 <th>CQ après CD</th>
                 <th>Pannes</th>
@@ -891,7 +947,7 @@ class PrintReportsManager {
             <tbody>
               <tr>
                 <td class="number-cell">${stats.totalCD}</td>
-                <td class="number-cell">${moyenneD1}h</td>
+                <td class="number-cell">${tauxD1}% (${stats.totalD1}/${stats.totalCD})</td>
                 <td class="number-cell">${stats.totalArchi}</td>
                 <td class="number-cell">${stats.totalCQ}</td>
                 <td class="number-cell">${stats.totalPannes}</td>
@@ -900,34 +956,65 @@ class PrintReportsManager {
             </tbody>
           </table>
 
-          <table class="cd-details-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Opérateur</th>
-                <th>Type CD</th>
-                <th style="text-align: center;">D1</th>
-                <th style="text-align: center;">Archi</th>
-                <th style="text-align: center;">CQ</th>
-                <th style="text-align: center;">Pannes</th>
-                <th style="text-align: center;">Temps</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stats.cdDetails.map(cd => `
+          ${Object.keys(stats.pannesDetail).length > 0 ? `
+            <div class="pannes-section">
+              <div class="pannes-title">Détail des Pannes pour cette Machine</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code Panne</th>
+                    <th>Description</th>
+                    <th style="text-align: center; width: 80px;">Nb</th>
+                    <th style="text-align: center; width: 100px;">Temps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.entries(stats.pannesDetail).sort((a, b) => b[1].count - a[1].count).map(([code, data]) => `
+                    <tr>
+                      <td style="font-weight: 600;">${code}</td>
+                      <td>${data.description}</td>
+                      <td style="text-align: center;">${data.count}</td>
+                      <td style="text-align: center;">${this.formatMinutes(data.temps)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 10px;">
+            <div style="font-weight: 600; font-size: 9pt; margin-bottom: 5px;">Liste Détaillée des CD</div>
+            <table style="font-size: 8pt;">
+              <thead>
                 <tr>
-                  <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
-                  <td>${cd.operateur}</td>
-                  <td>${cd.typeCD}</td>
-                  <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
-                  <td style="text-align: center;">${cd.nbArchi || '-'}</td>
-                  <td style="text-align: center;">${cd.nbCQ || '-'}</td>
-                  <td style="text-align: center;">${cd.nbPannes || '-'}</td>
-                  <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                  <th>Date</th>
+                  <th>Opérateur</th>
+                  <th>Type CD</th>
+                  <th style="text-align: center;">D1</th>
+                  <th style="text-align: center;">Archi</th>
+                  <th style="text-align: center;">CQ</th>
+                  <th style="text-align: center;">Pannes</th>
+                  <th style="text-align: center;">Temps</th>
+                  <th>Détail Pannes</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${stats.cdDetails.map(cd => `
+                  <tr>
+                    <td>${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                    <td>${cd.operateur}</td>
+                    <td>${cd.typeCD}</td>
+                    <td style="text-align: center;">${cd.conformiteD1 === 'ok' ? 'OK' : 'NOK'}</td>
+                    <td style="text-align: center;">${cd.nbArchi || '-'}</td>
+                    <td style="text-align: center;">${cd.nbCQ || '-'}</td>
+                    <td style="text-align: center;">${cd.nbPannes || '-'}</td>
+                    <td style="text-align: center;">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                    <td>${cd.pannes.length > 0 ? cd.pannes.map(p => p.code + ' (' + this.formatMinutes(p.temps) + ')').join(', ') : '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       `;
     });
@@ -949,20 +1036,15 @@ class PrintReportsManager {
       totalD1: 0,
       totalArchi: 0,
       totalCQ: 0,
-      tempsD1TotalMinutes: 0,
-      moyenneD1Heures: 0,
+      tauxD1: 0,
       archiByLevel: {},
       cqDetail: {},
-      pannesCount: 0
+      pannesCount: 0,
+      tempsPannesTotal: 0
     };
 
     cds.forEach(cd => {
-      // D1 - Temps moyen
-      if (cd.tempsImpactIncident && Object.keys(cd.tempsImpactIncident).length > 0) {
-        const tempsTotal = Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0);
-        stats.tempsD1TotalMinutes += tempsTotal;
-      }
-
+      // D1
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
       // Retours Archi
@@ -1002,18 +1084,23 @@ class PrintReportsManager {
       // Pannes
       if (cd.codesIncident && cd.codesIncident.length > 0) {
         stats.pannesCount += cd.codesIncident.length;
+
+        if (cd.tempsImpactIncident) {
+          Object.values(cd.tempsImpactIncident).forEach(temps => {
+            stats.tempsPannesTotal += temps;
+          });
+        }
       }
     });
 
-    // Calculer la moyenne D1 en heures
-    stats.moyenneD1Heures = stats.totalCD > 0 ? (stats.tempsD1TotalMinutes / stats.totalCD / 60).toFixed(2) : 0;
+    // Calculer le taux D1
+    stats.tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
 
     return stats;
   }
 
   generatePerformanceReportHTML(operateur, stats, startDate, endDate) {
     const periodStr = this.getPeriodString(startDate, endDate);
-    const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
 
     let html = `
       <!DOCTYPE html>
@@ -1028,7 +1115,7 @@ class PrintReportsManager {
             margin: 20px;
             background: #fff;
             color: #333;
-            font-size: 11pt;
+            font-size: 10pt;
           }
           .report-header {
             text-align: center;
@@ -1037,27 +1124,27 @@ class PrintReportsManager {
             border: 2px solid #000;
           }
           .report-header h1 {
-            font-size: 20pt;
+            font-size: 18pt;
             font-weight: 600;
             color: #000;
             margin-bottom: 8px;
           }
           .report-header .operator {
-            font-size: 16pt;
+            font-size: 14pt;
             font-weight: 600;
             color: #000;
             margin: 10px 0;
           }
           .report-header .period {
-            font-size: 11pt;
+            font-size: 10pt;
             color: #555;
           }
 
           .section-title {
-            font-size: 14pt;
+            font-size: 12pt;
             font-weight: 600;
             color: #000;
-            margin: 25px 0 10px 0;
+            margin: 20px 0 8px 0;
             padding-bottom: 5px;
             border-bottom: 1px solid #666;
             text-transform: uppercase;
@@ -1066,24 +1153,24 @@ class PrintReportsManager {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 10px 0;
             background: #fff;
           }
 
           th {
-            background: #f0f0f0;
-            padding: 10px;
+            background: #e8e8e8;
+            padding: 8px;
             text-align: center;
             font-weight: 600;
-            font-size: 10pt;
+            font-size: 9pt;
             border: 1px solid #999;
             color: #000;
           }
 
           td {
-            padding: 8px 10px;
+            padding: 6px 8px;
             border: 1px solid #ccc;
-            font-size: 10pt;
+            font-size: 9pt;
             color: #333;
             text-align: center;
           }
@@ -1095,21 +1182,21 @@ class PrintReportsManager {
           .number-cell {
             font-weight: 600;
             color: #000;
-            font-size: 12pt;
+            font-size: 11pt;
           }
 
           .footer {
-            margin-top: 40px;
-            padding-top: 15px;
+            margin-top: 30px;
+            padding-top: 10px;
             border-top: 1px solid #999;
             text-align: center;
-            font-size: 9pt;
+            font-size: 8pt;
             color: #777;
           }
 
           @media print {
             body { margin: 10mm; }
-            @page { size: A4; margin: 15mm; }
+            @page { size: A4; margin: 12mm; }
           }
         </style>
       </head>
@@ -1125,21 +1212,21 @@ class PrintReportsManager {
           <thead>
             <tr>
               <th>Total CD</th>
-              <th>D1 Moyen (heures)</th>
               <th>Taux D1 (%)</th>
               <th>Retours Archi</th>
               <th>CQ après CD</th>
               <th>Pannes</th>
+              <th>Temps Pannes</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td class="number-cell">${stats.totalCD}</td>
-              <td class="number-cell">${stats.moyenneD1Heures}h</td>
-              <td class="number-cell">${tauxD1}%</td>
+              <td class="number-cell">${stats.tauxD1}% (${stats.totalD1}/${stats.totalCD})</td>
               <td class="number-cell">${stats.totalArchi}</td>
               <td class="number-cell">${stats.totalCQ}</td>
               <td class="number-cell">${stats.pannesCount}</td>
+              <td class="number-cell">${this.formatMinutes(stats.tempsPannesTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -1172,7 +1259,7 @@ class PrintReportsManager {
               <tr>
                 <th style="text-align: left;">Code CQ</th>
                 <th style="text-align: left;">Description</th>
-                <th style="width: 150px;">Occurrences</th>
+                <th style="width: 120px;">Occurrences</th>
               </tr>
             </thead>
             <tbody>
