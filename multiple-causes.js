@@ -41,7 +41,8 @@ class MultipleCausesManager {
             ✅ Cliquez pour sélectionner plusieurs codes. Vous pouvez en choisir autant que nécessaire.
           </p>
 
-          <div class="multiple-causes-grid">
+          <div class="modal-scrollable-content">
+            <div class="multiple-causes-grid">
     `;
 
     codes.forEach(code => {
@@ -60,9 +61,10 @@ class MultipleCausesManager {
     });
 
     html += `
+            </div>
           </div>
 
-          <div class="modal-actions" style="margin-top: 20px;">
+          <div class="modal-actions">
             <div class="selected-count">
               <strong id="retourArchiCount">${this.selectedCodesQualite.length}</strong> code(s) sélectionné(s)
             </div>
@@ -172,7 +174,8 @@ class MultipleCausesManager {
             ✅ Sélectionnez tous les codes CQ détectés après le CD.
           </p>
 
-          <div class="multiple-causes-grid">
+          <div class="modal-scrollable-content">
+            <div class="multiple-causes-grid">
     `;
 
     dbData.codesCQ.forEach(code => {
@@ -191,9 +194,10 @@ class MultipleCausesManager {
     });
 
     html += `
+            </div>
           </div>
 
-          <div class="modal-actions" style="margin-top: 20px;">
+          <div class="modal-actions">
             <div class="selected-count">
               <strong id="cqCount">${this.selectedCodesCQ.length}</strong> code(s) sélectionné(s)
             </div>
@@ -296,7 +300,8 @@ class MultipleCausesManager {
             ✅ Sélectionnez toutes les pannes survenues pendant le CD.
           </p>
 
-          <div class="multiple-causes-grid">
+          <div class="modal-scrollable-content">
+            <div class="multiple-causes-grid">
     `;
 
     dbData.codesIncident.forEach(code => {
@@ -315,19 +320,20 @@ class MultipleCausesManager {
     });
 
     html += `
+            </div>
+
+            <!-- Liste des pannes sélectionnées avec temps individuel -->
+            <div id="selectedIncidentsDetails" style="margin-top: 20px;">
+              <!-- Rempli dynamiquement par updateIncidentDetailsForm() -->
+            </div>
+
+            <div class="form-group" style="margin-top: 12px;">
+              <label class="form-label">Commentaire global sur les pannes (optionnel)</label>
+              <textarea id="incidentGlobalComment" class="form-control" rows="3" placeholder="Décrivez les circonstances des pannes...">${this.selectedCommentsIncident['global'] || ''}</textarea>
+            </div>
           </div>
 
-          <!-- Liste des pannes sélectionnées avec temps individuel -->
-          <div id="selectedIncidentsDetails" style="margin-top: 20px;">
-            <!-- Rempli dynamiquement par updateIncidentDetailsForm() -->
-          </div>
-
-          <div class="form-group" style="margin-top: 12px;">
-            <label class="form-label">Commentaire global sur les pannes (optionnel)</label>
-            <textarea id="incidentGlobalComment" class="form-control" rows="3" placeholder="Décrivez les circonstances des pannes...">${this.selectedCommentsIncident['global'] || ''}</textarea>
-          </div>
-
-          <div class="modal-actions" style="margin-top: 20px;">
+          <div class="modal-actions">
             <div class="selected-count">
               <strong id="incidentCount">${this.selectedCodesIncident.length}</strong> panne(s) sélectionnée(s)
             </div>
