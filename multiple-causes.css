@@ -215,9 +215,11 @@
   padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-base);
   font-size: var(--font-size-sm);
-  white-space: nowrap;
+  white-space: pre-line;
   z-index: 1000;
   margin-bottom: 4px;
+  min-width: 200px;
+  max-width: 400px;
 }
 
 .tooltip-content::after {

@@ -1209,9 +1209,9 @@ function afficherHistorique(filteredData = null) {
         const incidentsList = cd.codesIncident.map(id => {
           const code = dbData.codesIncident.find(c => c.id === id);
           const temps = cd.tempsImpactIncident && cd.tempsImpactIncident[id] ? cd.tempsImpactIncident[id] : 0;
-          const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+          const tempsStr = temps > 0 ? ` ⏱️ ${temps} min` : '';
           return code ? `${code.code} - ${code.description}${tempsStr}` : '?';
-        }).join('<br>');
+        }).join('\n');
 
         incidentContent = `
           <div class="multiple-codes-tooltip">
@@ -1247,7 +1247,7 @@ function afficherHistorique(filteredData = null) {
         const codesList = cd.codesCQ.map(id => {
           const code = dbData.codesCQ.find(c => c.id === id);
           return code ? `${code.code} - ${code.description}` : '?';
-        }).join('<br>');
+        }).join('\n');
 
         cqContent = `
           <div class="multiple-codes-tooltip">
@@ -1286,7 +1286,7 @@ function afficherHistorique(filteredData = null) {
         const codesList = cd.codesQualite.map(id => {
           const code = dbData.codesQualite.find(c => c.id === id);
           return code ? `${code.code} - ${code.description}` : '?';
-        }).join('<br>');
+        }).join('\n');
 
         qualiteContent = `
           <div class="multiple-codes-tooltip">
@@ -2464,9 +2464,9 @@ function afficherFeedback() {
                   const incidentsList = cd.codesIncident.map(id => {
                     const code = dbData.codesIncident.find(c => c.id === id);
                     const temps = cd.tempsImpactIncident && cd.tempsImpactIncident[id] ? cd.tempsImpactIncident[id] : 0;
-                    const tempsStr = temps > 0 ? ` (${temps} min)` : '';
+                    const tempsStr = temps > 0 ? ` ⏱️ ${temps} min` : '';
                     return code ? `${code.code} - ${code.description}${tempsStr}` : '?';
-                  }).join('<br>');
+                  }).join('\n');
 
                   incidentContent = `
                     <div class="multiple-codes-tooltip">
@@ -2494,36 +2494,57 @@ function afficherFeedback() {
               
               // Tooltip pour CQ dans Feedback
               let cqContent = `<span class="status ${cqBadgeClass}">${cqLabel}</span>`;
-              if (cd.cqApres === 'Oui' && cd.codeCQ) {
-                const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
-                if (codeCQ) {
+              if (cd.cqApres === 'Oui') {
+                if (cd.codesCQ && Array.isArray(cd.codesCQ) && cd.codesCQ.length > 0) {
+                  const codesList = cd.codesCQ.map(id => {
+                    const code = dbData.codesCQ.find(c => c.id === id);
+                    return code ? `${code.code} - ${code.description}` : '?';
+                  }).join('\n');
+
                   cqContent = `
-                    <div class="tooltip">
-                      <span class="status ${cqBadgeClass}" style="cursor: pointer;">${cqLabel}</span>
-                      <span class="tooltiptext">
-                        <strong>CQ effectué(e)</strong><br>
-                        Code: <strong>${codeCQ.code}</strong><br>
-                        ${codeCQ.description}
-                      </span>
+                    <div class="multiple-codes-tooltip">
+                      <span class="status ${cqBadgeClass}" style="cursor: pointer;">CQ</span>
+                      <span class="tooltip-content">${codesList}</span>
                     </div>
                   `;
+                } else if (cd.codeCQ) {
+                  const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
+                  if (codeCQ) {
+                    cqContent = `
+                      <div class="multiple-codes-tooltip">
+                        <span class="status ${cqBadgeClass}" style="cursor: pointer;">CQ</span>
+                        <span class="tooltip-content">CQ effectué(e)\nCode: ${codeCQ.code}\n${codeCQ.description}</span>
+                      </div>
+                    `;
+                  }
                 }
               }
               
               // Tooltip pour Retour Archi dans Feedback
               let qualiteContent = `<span class="status ${qualiteClass}">${qualiteLabel}</span>`;
-              if (cd.qualite !== '1' && cd.codeQualite) {
-                const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
-                if (codeQualite) {
+              if (cd.qualite !== '1') {
+                if (cd.codesQualite && Array.isArray(cd.codesQualite) && cd.codesQualite.length > 0) {
+                  const codesList = cd.codesQualite.map(id => {
+                    const code = dbData.codesQualite.find(c => c.id === id);
+                    return code ? `${code.code} - ${code.description}` : '?';
+                  }).join('\n');
+
                   qualiteContent = `
-                    <div class="tooltip">
+                    <div class="multiple-codes-tooltip">
                       <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
-                      <span class="tooltiptext">
-                        <strong>Code Retour Archi:</strong><br>
-                        ${codeQualite.code} - ${codeQualite.description}
-                      </span>
+                      <span class="tooltip-content">${codesList}</span>
                     </div>
                   `;
+                } else if (cd.codeQualite) {
+                  const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
+                  if (codeQualite) {
+                    qualiteContent = `
+                      <div class="multiple-codes-tooltip">
+                        <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
+                        <span class="tooltip-content">Code Retour Archi:\n${codeQualite.code} - ${codeQualite.description}</span>
+                      </div>
+                    `;
+                  }
                 }
               }
               
