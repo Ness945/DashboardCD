@@ -94,6 +94,9 @@ let dbData = {
   ]
 };
 
+// Exposer dbData globalement pour les modules externes (print-reports.js, etc.)
+window.dbData = dbData;
+
 // Filtres avancés et recherche
 let advancedFilters = {
   searchQuery: '',
