@@ -47,9 +47,9 @@ class ExcelExporter {
           'Performance (%)': cd.performance,
           'CQ Après CD': cd.cqApres,
           'Code CQ': codeCQ ? `${codeCQ.code} - ${codeCQ.description}` : '',
-          'Incident': cd.incident,
-          'Code Incident': codeIncident ? `${codeIncident.code} - ${codeIncident.description}` : '',
-          'Commentaire Incident': cd.commentaireIncident || '',
+          'Panne': cd.incident,
+          'Code Panne': codeIncident ? `${codeIncident.code} - ${codeIncident.description}` : '',
+          'Commentaire Panne': cd.commentaireIncident || '',
           'Commentaire': cd.commentaire || '',
           'Anomalie': cd.anomalie ? 'OUI' : 'NON',
           'Caché': cd.cache ? 'OUI' : 'NON'
@@ -81,9 +81,9 @@ class ExcelExporter {
         { wch: 12 }, // Performance
         { wch: 12 }, // CQ Après CD
         { wch: 40 }, // Code CQ
-        { wch: 10 }, // Incident
-        { wch: 40 }, // Code Incident
-        { wch: 30 }, // Commentaire Incident
+        { wch: 10 }, // Panne
+        { wch: 40 }, // Code Panne
+        { wch: 30 }, // Commentaire Panne
         { wch: 40 }, // Commentaire
         { wch: 10 }, // Anomalie
         { wch: 10 }  // Caché
@@ -159,7 +159,7 @@ class ExcelExporter {
       { 'Indicateur': 'NIV 3', 'Valeur': niv3 },
       { 'Indicateur': '', 'Valeur': '' },
       { 'Indicateur': 'Anomalies', 'Valeur': anomalies },
-      { 'Indicateur': 'Incidents', 'Valeur': incidents },
+      { 'Indicateur': 'Pannes', 'Valeur': incidents },
       { 'Indicateur': '', 'Valeur': '' },
       { 'Indicateur': 'Date Export', 'Valeur': new Date().toISOString() }
     ];
@@ -212,7 +212,7 @@ class ExcelExporter {
             'Efficacité Moyenne (%)': efficaciteMoyenne.toFixed(2),
             'D1 Moyen (h)': d1Moyen.toFixed(2),
             'Taux NIV 1 (%)': Math.round((niv1 / nbCD) * 100),
-            'Taux Incidents (%)': Math.round((incidents / nbCD) * 100)
+            'Taux Pannes (%)': Math.round((incidents / nbCD) * 100)
           };
         }
       });
