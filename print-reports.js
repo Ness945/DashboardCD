@@ -6,19 +6,31 @@ class PrintReportsManager {
   }
 
   // === RAPPORT J-1 (ANALYSE QUOTIDIENNE) ===
-  async generateDailyReport(date) {
-    // Filtrer les CD de la veille (J-1)
-    const targetDate = date || new Date();
+  async generateDailyReport(dateParam) {
+    console.log('🔍 generateDailyReport appelé avec:', dateParam);
+    console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
+
+    // Si aucune date fournie, prendre la date du PC actuelle
+    const today = new Date();
+    const targetDate = dateParam ? new Date(dateParam) : new Date(today);
+
+    // Soustraire 1 jour pour avoir J-1
     targetDate.setDate(targetDate.getDate() - 1);
+
     const dateStr = targetDate.toISOString().split('T')[0];
+    console.log('📅 Date J-1 calculée:', dateStr, '(', this.formatDate(targetDate), ')');
 
     const cdsFiltered = dbData.cds.filter(cd => {
       const cdDate = new Date(cd.date).toISOString().split('T')[0];
       return cdDate === dateStr;
     });
 
+    console.log('✅ CD trouvés pour cette date:', cdsFiltered.length);
+
     if (cdsFiltered.length === 0) {
-      alert('Aucun CD trouvé pour la date J-1 (' + this.formatDate(targetDate) + ')');
+      alert('Aucun CD trouvé pour la date J-1 (' + this.formatDate(targetDate) + ')\n\n' +
+            'Date recherchée : ' + dateStr + '\n' +
+            'Total CD dans la base : ' + dbData.cds.length);
       return;
     }
 
@@ -29,10 +41,64 @@ class PrintReportsManager {
     const machineStats = this.calculateMachineStats(cdsFiltered);
 
     // Générer le HTML du rapport
-    const html = this.generateDailyReportHTML(targetDate, globalStats, machineStats);
+    const html = this.generateDailyReportHTML(targetDate, globalStats, machineStats, 'J-1');
 
     // Ouvrir la fenêtre d'impression
     this.openPrintWindow(html, 'Rapport J-1 - ' + this.formatDate(targetDate));
+  }
+
+  // === RAPPORT PÉRIODE (SEMAINE/MOIS) ===
+  async generatePeriodReport(period) {
+    console.log('🔍 generatePeriodReport appelé avec période:', period);
+    console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
+
+    const today = new Date();
+    let startDate, endDate, periodLabel;
+
+    if (period === 'week') {
+      // Semaine dernière (7 jours)
+      endDate = new Date(today);
+      endDate.setDate(endDate.getDate() - 1); // Hier
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 6); // 7 jours avant hier
+      periodLabel = 'Semaine';
+    } else if (period === 'month') {
+      // Mois dernier
+      endDate = new Date(today);
+      endDate.setDate(endDate.getDate() - 1); // Hier
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 29); // 30 jours avant hier
+      periodLabel = 'Mois';
+    }
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    console.log('📅 Période:', startDateStr, 'au', endDateStr);
+
+    const cdsFiltered = dbData.cds.filter(cd => {
+      const cdDate = new Date(cd.date).toISOString().split('T')[0];
+      return cdDate >= startDateStr && cdDate <= endDateStr;
+    });
+
+    console.log('✅ CD trouvés pour cette période:', cdsFiltered.length);
+
+    if (cdsFiltered.length === 0) {
+      alert('Aucun CD trouvé pour la période du ' + this.formatDate(startDate) + ' au ' + this.formatDate(endDate) + '\n\n' +
+            'Total CD dans la base : ' + dbData.cds.length);
+      return;
+    }
+
+    // Calculer les statistiques globales
+    const globalStats = this.calculateGlobalStats(cdsFiltered);
+
+    // Calculer les statistiques par machine
+    const machineStats = this.calculateMachineStats(cdsFiltered);
+
+    // Générer le HTML du rapport
+    const html = this.generatePeriodReportHTML(startDate, endDate, globalStats, machineStats, periodLabel);
+
+    // Ouvrir la fenêtre d'impression
+    this.openPrintWindow(html, 'Rapport ' + periodLabel + ' - ' + this.formatDate(startDate) + ' au ' + this.formatDate(endDate));
   }
 
   calculateGlobalStats(cds) {
@@ -359,6 +425,176 @@ class PrintReportsManager {
 
     // Ouvrir la fenêtre d'impression
     this.openPrintWindow(html, 'Rapport Performance - ' + operateur.nom);
+  }
+
+  generatePeriodReportHTML(startDate, endDate, globalStats, machineStats, periodLabel) {
+    const startFormatted = this.formatDate(startDate);
+    const endFormatted = this.formatDate(endDate);
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Rapport ${periodLabel} - ${startFormatted} au ${endFormatted}</title>
+        <link rel="stylesheet" href="print-reports.css">
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003d7a; padding-bottom: 15px; }
+          .print-header h1 { color: #003d7a; margin: 5px 0; }
+          .print-header .date { color: #666; font-size: 18px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+          .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+          .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+          .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+          .stat-card.red { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+          .stat-card .value { font-size: 48px; font-weight: bold; margin: 10px 0; }
+          .stat-card .label { font-size: 14px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+          .stat-card .percentage { font-size: 20px; margin-top: 5px; opacity: 0.9; }
+          .section-title { color: #003d7a; font-size: 24px; font-weight: bold; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #003d7a; }
+          .pannes-chart { margin: 20px 0; }
+          .panne-bar { margin: 10px 0; }
+          .panne-bar .panne-label { font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
+          .panne-bar .bar-container { background: #e0e0e0; height: 30px; border-radius: 5px; position: relative; overflow: hidden; }
+          .panne-bar .bar-fill { background: linear-gradient(90deg, #fa709a 0%, #fee140 100%); height: 100%; display: flex; align-items: center; padding-left: 10px; color: white; font-weight: bold; transition: width 0.3s; }
+          .machines-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; page-break-inside: avoid; }
+          .machine-card { border: 2px solid #ddd; border-radius: 10px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); page-break-inside: avoid; }
+          .machine-card h3 { color: #003d7a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
+          .machine-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+          .machine-stat { text-align: center; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+          .machine-stat .value { font-size: 24px; font-weight: bold; color: #003d7a; }
+          .machine-stat .label { font-size: 12px; color: #666; margin-top: 5px; }
+          .machine-pannes { margin-top: 15px; }
+          .machine-panne-item { display: flex; justify-content: space-between; padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 5px; border-left: 4px solid #fa709a; }
+          .machine-panne-item .code { font-weight: bold; color: #003d7a; }
+          .machine-panne-item .temps { color: #fa709a; font-weight: bold; }
+          @media print {
+            .machines-grid { page-break-inside: avoid; }
+            .machine-card { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-header">
+          <h1>📊 RAPPORT D'ANALYSE ${periodLabel.toUpperCase()}</h1>
+          <div class="date">Du ${startFormatted} au ${endFormatted}</div>
+          <div style="margin-top: 10px; color: #666; font-size: 14px;">Michelin Gravanches - Dashboard CD</div>
+        </div>
+
+        <div class="section-title">📈 Vue d'ensemble</div>
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="label">Total CD</div>
+            <div class="value">${globalStats.totalCD}</div>
+          </div>
+          <div class="stat-card green">
+            <div class="label">Taux D1</div>
+            <div class="value">${globalStats.tauxD1}%</div>
+            <div class="percentage">${globalStats.totalD1} / ${globalStats.totalCD}</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="label">Retours Archi</div>
+            <div class="value">${globalStats.totalArchi}</div>
+            <div class="percentage">${globalStats.tauxArchi}% des CD</div>
+          </div>
+          <div class="stat-card red">
+            <div class="label">CQ Après CD</div>
+            <div class="value">${globalStats.totalCQ}</div>
+            <div class="percentage">${globalStats.tauxCQ}% des CD</div>
+          </div>
+        </div>
+
+        <div class="section-title">⚠️ Analyse des Pannes (${globalStats.totalPannes} total - ${this.formatMinutes(globalStats.tempsPannesTotal)})</div>
+        <div class="pannes-chart">
+    `;
+
+    // Graphique des pannes
+    const pannesArray = Object.entries(globalStats.pannesDetail).sort((a, b) => b[1].count - a[1].count);
+    const maxPanneCount = pannesArray.length > 0 ? pannesArray[0][1].count : 1;
+
+    pannesArray.forEach(([code, data]) => {
+      const percentage = (data.count / maxPanneCount) * 100;
+      html += `
+        <div class="panne-bar">
+          <div class="panne-label">
+            <span><strong>${code}</strong> - ${data.description}</span>
+            <span>${data.count}x - ${this.formatMinutes(data.tempsTotal)}</span>
+          </div>
+          <div class="bar-container">
+            <div class="bar-fill" style="width: ${percentage}%">${data.count}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+
+        <div class="section-title" style="page-break-before: always;">🏭 Analyse par Machine</div>
+        <div class="machines-grid">
+    `;
+
+    // Stats par machine
+    Object.entries(machineStats).sort((a, b) => b[1].totalCD - a[1].totalCD).forEach(([machineName, stats]) => {
+      const tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
+
+      html += `
+        <div class="machine-card">
+          <h3>🏭 ${machineName}</h3>
+          <div class="machine-stats">
+            <div class="machine-stat">
+              <div class="value">${stats.totalCD}</div>
+              <div class="label">CD</div>
+            </div>
+            <div class="machine-stat">
+              <div class="value">${tauxD1}%</div>
+              <div class="label">D1</div>
+            </div>
+            <div class="machine-stat">
+              <div class="value">${stats.totalArchi}</div>
+              <div class="label">Archi</div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+            <div class="machine-stat">
+              <div class="value">${stats.totalCQ}</div>
+              <div class="label">CQ après CD</div>
+            </div>
+            <div class="machine-stat">
+              <div class="value">${stats.totalPannes}</div>
+              <div class="label">Pannes</div>
+            </div>
+          </div>
+      `;
+
+      if (stats.totalPannes > 0) {
+        html += `<div class="machine-pannes"><strong style="color: #003d7a;">Détail Pannes :</strong>`;
+        Object.entries(stats.pannesDetail).forEach(([code, data]) => {
+          html += `
+            <div class="machine-panne-item">
+              <span class="code">${code}</span>
+              <span>${data.count}x</span>
+              <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    html += `
+        </div>
+        <div style="margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px;">
+          Rapport généré le ${new Date().toLocaleString('fr-FR')} - Michelin Gravanches Dashboard CD
+        </div>
+      </body>
+      </html>
+    `;
+
+    return html;
   }
 
   calculatePerformanceStats(cds) {
