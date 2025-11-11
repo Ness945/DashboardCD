@@ -121,23 +121,41 @@ class PrintReportsManager {
     const stats = {
       totalCD: cds.length,
       totalD1: 0,
+      totalNiv1: 0, // CD sans retour archi (NIV 1)
       totalArchi: 0,
       totalCQ: 0,
       totalPannes: 0,
       tempsPannesTotal: 0,
       tauxD1: 0,
+      tauxNiv1: 0,
       tauxArchi: 0,
       tauxCQ: 0,
-      pannesDetail: {}
+      pannesDetail: {},
+      archiByLevel: {} // Compteur par niveau d'archi
     };
 
     cds.forEach(cd => {
       // D1
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
-      // Retours Archi
+      // Retours Archi et NIV 1
       if (cd.codesQualite && cd.codesQualite.length > 0) {
         stats.totalArchi += cd.codesQualite.length;
+
+        // Compter par niveau
+        cd.codesQualite.forEach(codeId => {
+          const code = dbData.codesQualite.find(c => c.id === codeId);
+          if (code) {
+            const niveau = code.niveau;
+            if (!stats.archiByLevel[niveau]) {
+              stats.archiByLevel[niveau] = 0;
+            }
+            stats.archiByLevel[niveau]++;
+          }
+        });
+      } else {
+        // Pas de retour archi = NIV 1
+        stats.totalNiv1++;
       }
 
       // CQ après CD
@@ -174,6 +192,7 @@ class PrintReportsManager {
 
     // Calculer les taux
     stats.tauxD1 = stats.totalCD > 0 ? ((stats.totalD1 / stats.totalCD) * 100).toFixed(1) : 0;
+    stats.tauxNiv1 = stats.totalCD > 0 ? ((stats.totalNiv1 / stats.totalCD) * 100).toFixed(1) : 0;
     stats.tauxArchi = stats.totalCD > 0 ? ((stats.totalArchi / stats.totalCD) * 100).toFixed(1) : 0;
     stats.tauxCQ = stats.totalCD > 0 ? ((stats.totalCQ / stats.totalCD) * 100).toFixed(1) : 0;
 
@@ -271,7 +290,7 @@ class PrintReportsManager {
           .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003d7a; padding-bottom: 15px; }
           .print-header h1 { color: #003d7a; margin: 5px 0; }
           .print-header .date { color: #666; font-size: 18px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
           .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
           .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
           .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
@@ -321,6 +340,11 @@ class PrintReportsManager {
             <div class="value">${globalStats.tauxD1}%</div>
             <div class="percentage">${globalStats.totalD1} / ${globalStats.totalCD}</div>
           </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);">
+            <div class="label">NIV 1 (Sans Archi)</div>
+            <div class="value">${globalStats.tauxNiv1}%</div>
+            <div class="percentage">${globalStats.totalNiv1} / ${globalStats.totalCD}</div>
+          </div>
           <div class="stat-card orange">
             <div class="label">Retours Archi</div>
             <div class="value">${globalStats.totalArchi}</div>
@@ -332,6 +356,24 @@ class PrintReportsManager {
             <div class="percentage">${globalStats.tauxCQ}% des CD</div>
           </div>
         </div>
+
+        ${Object.keys(globalStats.archiByLevel).length > 0 ? `
+          <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #f5576c;">
+            <h3 style="margin: 0 0 15px 0; color: #003d7a; font-size: 18px;">📊 Détail Retours Archi par Niveau</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+              ${Object.entries(globalStats.archiByLevel).map(([niveau, count]) => {
+                const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : `Niveau ${niveau}`;
+                const niveauColor = niveau === '2' || niveau === '2_grave' || niveau === '2_cc' ? '#f5576c' : '#ff9800';
+                return `
+                  <div style="text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border-top: 3px solid ${niveauColor};">
+                    <div style="font-size: 32px; font-weight: bold; color: ${niveauColor};">${count}</div>
+                    <div style="font-size: 14px; color: #666; margin-top: 5px;">${niveauLabel}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
 
         <div class="section-title">⚠️ Analyse des Pannes (${globalStats.totalPannes} total - ${this.formatMinutes(globalStats.tempsPannesTotal)})</div>
         <div class="pannes-chart">
@@ -531,7 +573,7 @@ class PrintReportsManager {
           .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003d7a; padding-bottom: 15px; }
           .print-header h1 { color: #003d7a; margin: 5px 0; }
           .print-header .date { color: #666; font-size: 18px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
           .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
           .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
           .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
@@ -581,6 +623,11 @@ class PrintReportsManager {
             <div class="value">${globalStats.tauxD1}%</div>
             <div class="percentage">${globalStats.totalD1} / ${globalStats.totalCD}</div>
           </div>
+          <div class="stat-card" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);">
+            <div class="label">NIV 1 (Sans Archi)</div>
+            <div class="value">${globalStats.tauxNiv1}%</div>
+            <div class="percentage">${globalStats.totalNiv1} / ${globalStats.totalCD}</div>
+          </div>
           <div class="stat-card orange">
             <div class="label">Retours Archi</div>
             <div class="value">${globalStats.totalArchi}</div>
@@ -592,6 +639,24 @@ class PrintReportsManager {
             <div class="percentage">${globalStats.tauxCQ}% des CD</div>
           </div>
         </div>
+
+        ${Object.keys(globalStats.archiByLevel).length > 0 ? `
+          <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #f5576c;">
+            <h3 style="margin: 0 0 15px 0; color: #003d7a; font-size: 18px;">📊 Détail Retours Archi par Niveau</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+              ${Object.entries(globalStats.archiByLevel).map(([niveau, count]) => {
+                const niveauLabel = niveau === '2_grave' || niveau === '2_cc' ? 'Niveau 2 CC' : `Niveau ${niveau}`;
+                const niveauColor = niveau === '2' || niveau === '2_grave' || niveau === '2_cc' ? '#f5576c' : '#ff9800';
+                return `
+                  <div style="text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border-top: 3px solid ${niveauColor};">
+                    <div style="font-size: 32px; font-weight: bold; color: ${niveauColor};">${count}</div>
+                    <div style="font-size: 14px; color: #666; margin-top: 5px;">${niveauLabel}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
 
         <div class="section-title">⚠️ Analyse des Pannes (${globalStats.totalPannes} total - ${this.formatMinutes(globalStats.tempsPannesTotal)})</div>
         <div class="pannes-chart">
