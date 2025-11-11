@@ -10,13 +10,13 @@ class PrintReportsManager {
     console.log('🔍 generateDailyReport appelé avec:', dateParam);
 
     // Vérifier que dbData est chargé
-    if (!window.dbData || !window.dbData.cds) {
+    if (!window.dbData || !window.dbData.cd) {
       alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
       console.error('❌ dbData non disponible:', window.dbData);
       return;
     }
 
-    console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
+    console.log('📊 Nombre total de CD dans la base:', dbData.cd.length);
 
     // Si aucune date fournie, prendre la date du PC actuelle
     const today = new Date();
@@ -28,7 +28,7 @@ class PrintReportsManager {
     const dateStr = targetDate.toISOString().split('T')[0];
     console.log('📅 Date J-1 calculée:', dateStr, '(', this.formatDate(targetDate), ')');
 
-    const cdsFiltered = dbData.cds.filter(cd => {
+    const cdsFiltered = dbData.cd.filter(cd => {
       const cdDate = new Date(cd.date).toISOString().split('T')[0];
       return cdDate === dateStr;
     });
@@ -38,7 +38,7 @@ class PrintReportsManager {
     if (cdsFiltered.length === 0) {
       alert('Aucun CD trouvé pour la date J-1 (' + this.formatDate(targetDate) + ')\n\n' +
             'Date recherchée : ' + dateStr + '\n' +
-            'Total CD dans la base : ' + dbData.cds.length);
+            'Total CD dans la base : ' + dbData.cd.length);
       return;
     }
 
@@ -60,13 +60,13 @@ class PrintReportsManager {
     console.log('🔍 generatePeriodReport appelé avec période:', period);
 
     // Vérifier que dbData est chargé
-    if (!window.dbData || !window.dbData.cds) {
+    if (!window.dbData || !window.dbData.cd) {
       alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
       console.error('❌ dbData non disponible:', window.dbData);
       return;
     }
 
-    console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
+    console.log('📊 Nombre total de CD dans la base:', dbData.cd.length);
 
     const today = new Date();
     let startDate, endDate, periodLabel;
@@ -91,7 +91,7 @@ class PrintReportsManager {
     const endDateStr = endDate.toISOString().split('T')[0];
     console.log('📅 Période:', startDateStr, 'au', endDateStr);
 
-    const cdsFiltered = dbData.cds.filter(cd => {
+    const cdsFiltered = dbData.cd.filter(cd => {
       const cdDate = new Date(cd.date).toISOString().split('T')[0];
       return cdDate >= startDateStr && cdDate <= endDateStr;
     });
@@ -100,7 +100,7 @@ class PrintReportsManager {
 
     if (cdsFiltered.length === 0) {
       alert('Aucun CD trouvé pour la période du ' + this.formatDate(startDate) + ' au ' + this.formatDate(endDate) + '\n\n' +
-            'Total CD dans la base : ' + dbData.cds.length);
+            'Total CD dans la base : ' + dbData.cd.length);
       return;
     }
 
@@ -414,7 +414,7 @@ class PrintReportsManager {
     console.log('🔍 generatePerformanceReport appelé avec:', operateurId, startDate, endDate);
 
     // Vérifier que dbData est chargé
-    if (!window.dbData || !window.dbData.cds || !window.dbData.operateurs) {
+    if (!window.dbData || !window.dbData.cd || !window.dbData.operateurs) {
       alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
       console.error('❌ dbData non disponible:', window.dbData);
       return;
@@ -427,7 +427,7 @@ class PrintReportsManager {
     }
 
     // Filtrer les CD de l'opérateur sur la période
-    const cdsFiltered = dbData.cds.filter(cd => {
+    const cdsFiltered = dbData.cd.filter(cd => {
       if (cd.operateurId !== operateurId) return false;
 
       const cdDate = new Date(cd.date);
