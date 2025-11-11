@@ -887,13 +887,26 @@ function validerIncident() {
 }
 
 // === REMPLIR LES SELECTS ===
+// Mapping des types de machines courts vers longs
+function mapTypeMachine(typeAbrege) {
+  const mapping = {
+    'SPR': 'SPRINT',
+    'GMT': 'GMT',
+    'SPR FLSH': 'SPRINT FLASH'
+  };
+  return mapping[typeAbrege] || typeAbrege;
+}
+
 function remplirSelectsMachines(typeMachineFiltre = null) {
   const select = document.getElementById('cdNumMachine');
   select.innerHTML = '<option value="">-- Sélectionner --</option>';
 
+  // Convertir le type abrégé en type long
+  const typeMachineLong = typeMachineFiltre ? mapTypeMachine(typeMachineFiltre) : null;
+
   // Filtrer les machines selon le type si un filtre est spécifié
-  const machinesFiltrees = typeMachineFiltre
-    ? dbData.machines.filter(mc => mc.type === typeMachineFiltre)
+  const machinesFiltrees = typeMachineLong
+    ? dbData.machines.filter(mc => mc.type === typeMachineLong)
     : dbData.machines;
 
   machinesFiltrees.forEach(mc => {
@@ -2970,12 +2983,14 @@ function afficherPieChartRetourArchi(cdData) {
 function afficherBarChartMachine(cdData) {
   const types = {};
   cdData.forEach(cd => {
-    if (!types[cd.typeMachine]) types[cd.typeMachine] = 0;
-    types[cd.typeMachine]++;
+    // Convertir le type abrégé en type long pour l'affichage
+    const typeLong = mapTypeMachine(cd.typeMachine);
+    if (!types[typeLong]) types[typeLong] = 0;
+    types[typeLong]++;
   });
-  
+
   const maxCount = Math.max(...Object.values(types), 1);
-  
+
   const html = `
     <div class="bar-chart-simple">
       ${Object.entries(types).map(([type, count]) => `
