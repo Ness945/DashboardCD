@@ -99,26 +99,32 @@
                 <h3>🖨️ Rapports d'Impression</h3>
             </div>
             <div class="print-reports-section" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-20); margin-bottom: var(--space-32);">
-                <!-- Rapport J-1 -->
+                <!-- Rapport Analyse -->
                 <div class="report-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: var(--space-24); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);">
                     <div style="display: flex; align-items: center; gap: var(--space-12); margin-bottom: var(--space-16);">
                         <div style="font-size: 48px;">📊</div>
                         <div>
-                            <h4 style="margin: 0; font-size: 20px;">Rapport J-1</h4>
-                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Analyse quotidienne</p>
+                            <h4 style="margin: 0; font-size: 20px;">Rapport Analyse</h4>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">J-1, Semaine ou Mois</p>
                         </div>
                     </div>
                     <p style="margin: 0 0 var(--space-16) 0; font-size: 14px; opacity: 0.9; line-height: 1.5;">
-                        Vue d'ensemble de la veille : D1 global et par machine, CQ, Retours Archi, durée des pannes
+                        D1 global et par machine, CQ, Retours Archi, durée des pannes
                     </p>
-                    <div style="display: flex; gap: var(--space-8);">
-                        <button class="btn btn--primary" onclick="printReportsManager.generateDailyReport()" style="flex: 1; background: white; color: #667eea; font-weight: bold;">
-                            🖨️ Générer J-1
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-8); margin-bottom: var(--space-8);">
+                        <button class="btn btn--primary" onclick="printReportsManager.generateDailyReport()" style="background: white; color: #667eea; font-weight: bold; padding: var(--space-8); font-size: 14px;">
+                            📅 J-1
                         </button>
-                        <button class="btn btn--secondary" onclick="openCustomDateReportModal()" style="flex: 1; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
-                            📅 Date custom
+                        <button class="btn btn--primary" onclick="printReportsManager.generatePeriodReport('week')" style="background: white; color: #667eea; font-weight: bold; padding: var(--space-8); font-size: 14px;">
+                            📅 Semaine
+                        </button>
+                        <button class="btn btn--primary" onclick="printReportsManager.generatePeriodReport('month')" style="background: white; color: #667eea; font-weight: bold; padding: var(--space-8); font-size: 14px;">
+                            📅 Mois
                         </button>
                     </div>
+                    <button class="btn btn--secondary" onclick="openCustomDateReportModal()" style="width: 100%; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                        📅 Date personnalisée
+                    </button>
                 </div>
 
                 <!-- Rapport Performance Individuel -->
