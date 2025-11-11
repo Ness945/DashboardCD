@@ -195,12 +195,28 @@ class PrintReportsManager {
           totalCQ: 0,
           totalPannes: 0,
           tempsPannes: 0,
-          pannesDetail: {}
+          pannesDetail: {},
+          cdDetails: [] // Nouveau: stocker tous les CD
         };
       }
 
       const stats = machineStats[machine.nom];
       stats.totalCD++;
+
+      // Stocker les détails du CD
+      stats.cdDetails.push({
+        id: cd.id,
+        date: cd.date,
+        operateur: dbData.operateurs.find(op => op.id === cd.operateurId)?.nom || 'N/A',
+        typeCD: cd.typeCD || 'N/A',
+        conformiteD1: cd.conformiteD1,
+        nbArchi: cd.codesQualite ? cd.codesQualite.length : 0,
+        nbCQ: cd.codesCQ ? cd.codesCQ.length : 0,
+        nbPannes: cd.codesIncident ? cd.codesIncident.length : 0,
+        tempsTotal: cd.codesIncident && cd.tempsImpactIncident
+          ? Object.values(cd.tempsImpactIncident).reduce((sum, t) => sum + t, 0)
+          : 0
+      });
 
       if (cd.conformiteD1 === 'ok') stats.totalD1++;
 
@@ -273,7 +289,7 @@ class PrintReportsManager {
           .machines-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; page-break-inside: avoid; }
           .machine-card { border: 2px solid #ddd; border-radius: 10px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); page-break-inside: avoid; }
           .machine-card h3 { color: #003d7a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
-          .machine-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+          .machine-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 15px 0; }
           .machine-stat { text-align: center; padding: 10px; background: #f5f5f5; border-radius: 5px; }
           .machine-stat .value { font-size: 24px; font-weight: bold; color: #003d7a; }
           .machine-stat .label { font-size: 12px; color: #666; margin-top: 5px; }
@@ -353,22 +369,22 @@ class PrintReportsManager {
 
       html += `
         <div class="machine-card">
-          <h3>🏭 ${machineName}</h3>
+          <h3>🏭 ${machineName} <span style="font-weight: normal; font-size: 14px; color: #666;">(${stats.totalCD} CD)</span></h3>
+
+          <!-- Stats globales -->
           <div class="machine-stats">
             <div class="machine-stat">
               <div class="value">${stats.totalCD}</div>
-              <div class="label">CD</div>
+              <div class="label">Total CD</div>
             </div>
             <div class="machine-stat">
               <div class="value">${tauxD1}%</div>
-              <div class="label">D1</div>
+              <div class="label">Taux D1</div>
             </div>
             <div class="machine-stat">
               <div class="value">${stats.totalArchi}</div>
-              <div class="label">Archi</div>
+              <div class="label">Retours Archi</div>
             </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
             <div class="machine-stat">
               <div class="value">${stats.totalCQ}</div>
               <div class="label">CQ après CD</div>
@@ -377,24 +393,60 @@ class PrintReportsManager {
               <div class="value">${stats.totalPannes}</div>
               <div class="label">Pannes</div>
             </div>
-          </div>
-      `;
-
-      if (stats.totalPannes > 0) {
-        html += `<div class="machine-pannes"><strong style="color: #003d7a;">Détail Pannes :</strong>`;
-        Object.entries(stats.pannesDetail).forEach(([code, data]) => {
-          html += `
-            <div class="machine-panne-item">
-              <span class="code">${code}</span>
-              <span>${data.count}x</span>
-              <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
+            <div class="machine-stat">
+              <div class="value">${this.formatMinutes(stats.tempsPannes)}</div>
+              <div class="label">Temps Pannes</div>
             </div>
-          `;
-        });
-        html += `</div>`;
-      }
+          </div>
 
-      html += `</div>`;
+          <!-- Détail des pannes -->
+          ${stats.totalPannes > 0 ? `
+            <div style="margin: 15px 0;">
+              <strong style="color: #003d7a; display: block; margin-bottom: 8px;">⚠️ Détail des Pannes :</strong>
+              ${Object.entries(stats.pannesDetail).map(([code, data]) => `
+                <div class="machine-panne-item">
+                  <span class="code">${code}</span>
+                  <span>${data.count}x</span>
+                  <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- Liste détaillée des CD -->
+          <div style="margin-top: 15px;">
+            <strong style="color: #003d7a; display: block; margin-bottom: 8px;">📋 Détail des CD :</strong>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: #f5f5f5; border-bottom: 2px solid #003d7a;">
+                  <th style="padding: 8px; text-align: left; font-weight: 600;">Date</th>
+                  <th style="padding: 8px; text-align: left; font-weight: 600;">Opérateur</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Type CD</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">D1</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Archi</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">CQ</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Pannes</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Temps</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${stats.cdDetails.map(cd => `
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 6px;">${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                    <td style="padding: 6px;">${cd.operateur}</td>
+                    <td style="padding: 6px; text-align: center;">${cd.typeCD}</td>
+                    <td style="padding: 6px; text-align: center;">${cd.conformiteD1 === 'ok' ? '✅' : '❌'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbArchi > 0 ? '#f5576c' : '#999'};">${cd.nbArchi || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbCQ > 0 ? '#f5576c' : '#999'};">${cd.nbCQ || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbPannes > 0 ? '#fa709a' : '#999'};">${cd.nbPannes || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.tempsTotal > 0 ? '#fa709a' : '#999'};">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     });
 
     html += `
@@ -426,8 +478,12 @@ class PrintReportsManager {
       return;
     }
 
+    console.log('👤 Opérateur trouvé:', operateur.nom);
+
     // Filtrer les CD de l'opérateur sur la période
     const cdsFiltered = dbData.cd.filter(cd => {
+      console.log('🔍 Vérification CD:', cd.id, 'operateurId:', cd.operateurId, 'recherché:', operateurId);
+
       if (cd.operateurId !== operateurId) return false;
 
       const cdDate = new Date(cd.date);
@@ -437,8 +493,15 @@ class PrintReportsManager {
       return cdDate >= start && cdDate <= end;
     });
 
+    console.log('✅ CD trouvés pour cet opérateur:', cdsFiltered.length);
+
     if (cdsFiltered.length === 0) {
-      alert('Aucun CD trouvé pour cet opérateur sur cette période');
+      // Afficher des détails pour diagnostiquer
+      const allOperateurIds = dbData.cd.map(cd => cd.operateurId).filter((v, i, a) => a.indexOf(v) === i);
+      alert('Aucun CD trouvé pour cet opérateur sur cette période\n\n' +
+            'Opérateur recherché: ' + operateur.nom + ' (ID: ' + operateurId + ')\n' +
+            'Période: ' + (startDate || 'début') + ' → ' + (endDate || 'fin') + '\n\n' +
+            'IDs opérateurs trouvés dans les CD:\n' + allOperateurIds.join(', '));
       return;
     }
 
@@ -486,7 +549,7 @@ class PrintReportsManager {
           .machines-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px; page-break-inside: avoid; }
           .machine-card { border: 2px solid #ddd; border-radius: 10px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); page-break-inside: avoid; }
           .machine-card h3 { color: #003d7a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #003d7a; padding-bottom: 10px; }
-          .machine-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+          .machine-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 15px 0; }
           .machine-stat { text-align: center; padding: 10px; background: #f5f5f5; border-radius: 5px; }
           .machine-stat .value { font-size: 24px; font-weight: bold; color: #003d7a; }
           .machine-stat .label { font-size: 12px; color: #666; margin-top: 5px; }
@@ -566,22 +629,22 @@ class PrintReportsManager {
 
       html += `
         <div class="machine-card">
-          <h3>🏭 ${machineName}</h3>
+          <h3>🏭 ${machineName} <span style="font-weight: normal; font-size: 14px; color: #666;">(${stats.totalCD} CD)</span></h3>
+
+          <!-- Stats globales -->
           <div class="machine-stats">
             <div class="machine-stat">
               <div class="value">${stats.totalCD}</div>
-              <div class="label">CD</div>
+              <div class="label">Total CD</div>
             </div>
             <div class="machine-stat">
               <div class="value">${tauxD1}%</div>
-              <div class="label">D1</div>
+              <div class="label">Taux D1</div>
             </div>
             <div class="machine-stat">
               <div class="value">${stats.totalArchi}</div>
-              <div class="label">Archi</div>
+              <div class="label">Retours Archi</div>
             </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
             <div class="machine-stat">
               <div class="value">${stats.totalCQ}</div>
               <div class="label">CQ après CD</div>
@@ -590,24 +653,60 @@ class PrintReportsManager {
               <div class="value">${stats.totalPannes}</div>
               <div class="label">Pannes</div>
             </div>
-          </div>
-      `;
-
-      if (stats.totalPannes > 0) {
-        html += `<div class="machine-pannes"><strong style="color: #003d7a;">Détail Pannes :</strong>`;
-        Object.entries(stats.pannesDetail).forEach(([code, data]) => {
-          html += `
-            <div class="machine-panne-item">
-              <span class="code">${code}</span>
-              <span>${data.count}x</span>
-              <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
+            <div class="machine-stat">
+              <div class="value">${this.formatMinutes(stats.tempsPannes)}</div>
+              <div class="label">Temps Pannes</div>
             </div>
-          `;
-        });
-        html += `</div>`;
-      }
+          </div>
 
-      html += `</div>`;
+          <!-- Détail des pannes -->
+          ${stats.totalPannes > 0 ? `
+            <div style="margin: 15px 0;">
+              <strong style="color: #003d7a; display: block; margin-bottom: 8px;">⚠️ Détail des Pannes :</strong>
+              ${Object.entries(stats.pannesDetail).map(([code, data]) => `
+                <div class="machine-panne-item">
+                  <span class="code">${code}</span>
+                  <span>${data.count}x</span>
+                  <span class="temps">⏱️ ${this.formatMinutes(data.temps)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- Liste détaillée des CD -->
+          <div style="margin-top: 15px;">
+            <strong style="color: #003d7a; display: block; margin-bottom: 8px;">📋 Détail des CD :</strong>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: #f5f5f5; border-bottom: 2px solid #003d7a;">
+                  <th style="padding: 8px; text-align: left; font-weight: 600;">Date</th>
+                  <th style="padding: 8px; text-align: left; font-weight: 600;">Opérateur</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Type CD</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">D1</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Archi</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">CQ</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Pannes</th>
+                  <th style="padding: 8px; text-align: center; font-weight: 600;">Temps</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${stats.cdDetails.map(cd => `
+                  <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 6px;">${new Date(cd.date).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}</td>
+                    <td style="padding: 6px;">${cd.operateur}</td>
+                    <td style="padding: 6px; text-align: center;">${cd.typeCD}</td>
+                    <td style="padding: 6px; text-align: center;">${cd.conformiteD1 === 'ok' ? '✅' : '❌'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbArchi > 0 ? '#f5576c' : '#999'};">${cd.nbArchi || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbCQ > 0 ? '#f5576c' : '#999'};">${cd.nbCQ || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.nbPannes > 0 ? '#fa709a' : '#999'};">${cd.nbPannes || '-'}</td>
+                    <td style="padding: 6px; text-align: center; color: ${cd.tempsTotal > 0 ? '#fa709a' : '#999'};">${cd.tempsTotal > 0 ? this.formatMinutes(cd.tempsTotal) : '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     });
 
     html += `
