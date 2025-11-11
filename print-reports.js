@@ -245,6 +245,24 @@ class PrintReportsManager {
       const conf1 = dbData.operateurs.find(op => op.id === cd.conf1);
       const conf2 = dbData.operateurs.find(op => op.id === cd.conf2);
 
+      // Label de qualité
+      const qualiteLabel = this.getQualiteLabel(cd.qualite);
+
+      // Détail CQ
+      let cqInfo = '-';
+      if (cd.cqApres === "Oui") {
+        if (cd.codeCQ) {
+          const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
+          if (codeCQ) {
+            cqInfo = codeCQ.code; // Ex: "16.1"
+          } else {
+            cqInfo = 'Oui';
+          }
+        } else {
+          cqInfo = 'Oui';
+        }
+      }
+
       stats.cdList.push({
         heure: cd.heure || '-',
         cai: cd.cai || '-',
@@ -252,8 +270,8 @@ class PrintReportsManager {
         conf1: conf1 ? conf1.nom : '-',
         conf2: conf2 ? conf2.nom : '-',
         d1: d1Value.toFixed(2) + 'h',
-        qualite: cd.qualite || '-',
-        cqApres: cd.cqApres === "Oui" ? 'Oui' : 'Non',
+        qualite: qualiteLabel,
+        cqApres: cqInfo,
         panne: panneInfo,
         commentaire: cd.commentaire || '-'
       });
@@ -440,7 +458,7 @@ class PrintReportsManager {
             <tbody>
               ${Object.entries(globalStats.detailRetoursArchi).map(([niveau, count]) => `
                 <tr>
-                  <td class="bold">Niveau ${niveau}</td>
+                  <td class="bold">${this.getQualiteLabel(niveau)}</td>
                   <td class="text-center bold">${count}</td>
                 </tr>
               `).join('')}
@@ -637,11 +655,134 @@ class PrintReportsManager {
     }
 
     const perfStats = this.calculateGlobalStats(cdsFiltered);
-    const html = this.generatePerformanceReportHTML(operateur, perfStats, startDate, endDate);
+    const perfDetails = this.calculatePerformanceDetails(operateurId, cdsFiltered);
+    const html = this.generatePerformanceReportHTML(operateur, perfStats, perfDetails, startDate, endDate);
     this.openPrintWindow(html);
   }
 
-  generatePerformanceReportHTML(operateur, stats, startDate, endDate) {
+  // === CALCUL DES DÉTAILS DE PERFORMANCE ===
+  calculatePerformanceDetails(operateurId, cds) {
+    const details = {
+      binomes: {}, // Analyse des binômes
+      machines: {}, // Analyse par type de machine
+      totalAsConf1: 0,
+      totalAsConf2: 0,
+      tauxQualite: 0, // Pourcentage de CD sans retour archi
+      tauxCQ: 0, // Pourcentage de CD avec CQ
+      topBinome: null
+    };
+
+    cds.forEach(cd => {
+      // Analyse binôme
+      let partenaireId = null;
+      if (cd.conf1 === operateurId) {
+        details.totalAsConf1++;
+        partenaireId = cd.conf2;
+      } else if (cd.conf2 === operateurId) {
+        details.totalAsConf2++;
+        partenaireId = cd.conf1;
+      }
+
+      // Compter les binômes
+      if (partenaireId) {
+        if (!details.binomes[partenaireId]) {
+          const partenaire = dbData.operateurs.find(op => op.id === partenaireId);
+          details.binomes[partenaireId] = {
+            nom: partenaire ? partenaire.nom : 'Inconnu',
+            count: 0,
+            totalD1: 0,
+            retoursArchi: 0,
+            cqApres: 0
+          };
+        }
+
+        details.binomes[partenaireId].count++;
+
+        // Statistiques du binôme
+        if (cd.d1Net && !isNaN(cd.d1Net)) {
+          details.binomes[partenaireId].totalD1 += parseFloat(cd.d1Net);
+        } else if (cd.d1Reel && !isNaN(cd.d1Reel)) {
+          details.binomes[partenaireId].totalD1 += parseFloat(cd.d1Reel);
+        }
+
+        if (cd.qualite && cd.qualite !== "1") {
+          details.binomes[partenaireId].retoursArchi++;
+        }
+
+        if (cd.cqApres === "Oui") {
+          details.binomes[partenaireId].cqApres++;
+        }
+      }
+
+      // Analyse par machine
+      const machine = dbData.machines.find(m => m.id === cd.numMachine);
+      if (machine) {
+        const machineType = machine.type;
+
+        if (!details.machines[machineType]) {
+          details.machines[machineType] = {
+            count: 0,
+            totalD1: 0,
+            retoursArchi: 0,
+            cqApres: 0
+          };
+        }
+
+        details.machines[machineType].count++;
+
+        if (cd.d1Net && !isNaN(cd.d1Net)) {
+          details.machines[machineType].totalD1 += parseFloat(cd.d1Net);
+        } else if (cd.d1Reel && !isNaN(cd.d1Reel)) {
+          details.machines[machineType].totalD1 += parseFloat(cd.d1Reel);
+        }
+
+        if (cd.qualite && cd.qualite !== "1") {
+          details.machines[machineType].retoursArchi++;
+        }
+
+        if (cd.cqApres === "Oui") {
+          details.machines[machineType].cqApres++;
+        }
+      }
+    });
+
+    // Calculer les moyennes pour les binômes
+    Object.values(details.binomes).forEach(binome => {
+      binome.moyenneD1 = binome.count > 0 ? (binome.totalD1 / binome.count).toFixed(2) : 0;
+      binome.tauxRetoursArchi = binome.count > 0 ? ((binome.retoursArchi / binome.count) * 100).toFixed(1) : 0;
+      binome.tauxCQ = binome.count > 0 ? ((binome.cqApres / binome.count) * 100).toFixed(1) : 0;
+    });
+
+    // Calculer les moyennes pour les machines
+    Object.values(details.machines).forEach(machine => {
+      machine.moyenneD1 = machine.count > 0 ? (machine.totalD1 / machine.count).toFixed(2) : 0;
+      machine.tauxRetoursArchi = machine.count > 0 ? ((machine.retoursArchi / machine.count) * 100).toFixed(1) : 0;
+      machine.tauxCQ = machine.count > 0 ? ((machine.cqApres / machine.count) * 100).toFixed(1) : 0;
+    });
+
+    // Trouver le top binôme (celui avec qui l'opérateur a fait le plus de CD)
+    const binomesArray = Object.entries(details.binomes).map(([id, data]) => ({
+      id,
+      ...data
+    }));
+
+    if (binomesArray.length > 0) {
+      binomesArray.sort((a, b) => b.count - a.count);
+      details.topBinome = binomesArray[0];
+    }
+
+    // Taux globaux
+    const totalCD = cds.length;
+    const cdSansRetourArchi = cds.filter(cd => !cd.qualite || cd.qualite === "1").length;
+    const cdAvecCQ = cds.filter(cd => cd.cqApres === "Oui").length;
+
+    details.tauxQualite = totalCD > 0 ? ((cdSansRetourArchi / totalCD) * 100).toFixed(1) : 0;
+    details.tauxCQ = totalCD > 0 ? ((cdAvecCQ / totalCD) * 100).toFixed(1) : 0;
+
+    return details;
+  }
+
+  generatePerformanceReportHTML(operateur, stats, perfDetails, startDate, endDate) {
     const periodStr = this.getPeriodString(startDate, endDate);
 
     let html = `
@@ -742,13 +883,15 @@ class PrintReportsManager {
 
         <div class="section-title">Indicateurs de Performance</div>
 
-        <table style="width: 80%; margin: 20px auto;">
+        <table style="width: 100%; margin: 20px auto;">
           <thead>
             <tr>
               <th>Total CD</th>
               <th>D1 Moyen</th>
               <th>Retours Archi</th>
+              <th>Taux Qualité</th>
               <th>CQ Après CD</th>
+              <th>Taux CQ</th>
               <th>Pannes</th>
             </tr>
           </thead>
@@ -757,11 +900,128 @@ class PrintReportsManager {
               <td class="stat-value">${stats.totalCD}</td>
               <td class="stat-value">${stats.moyenneD1}h</td>
               <td class="stat-value">${stats.totalRetoursArchi}</td>
+              <td class="stat-value">${perfDetails.tauxQualite}%</td>
               <td class="stat-value">${stats.totalCQApres}</td>
+              <td class="stat-value">${perfDetails.tauxCQ}%</td>
               <td class="stat-value">${stats.totalPannes}</td>
             </tr>
           </tbody>
         </table>
+
+        <!-- TOP BINÔME -->
+        ${perfDetails.topBinome ? `
+          <div style="background: #f0f0f0; padding: 15px; margin: 20px 0; border-left: 5px solid #000;">
+            <div style="font-size: 12pt; font-weight: 600; margin-bottom: 10px;">🏆 Top Binôme</div>
+            <div style="font-size: 14pt; font-weight: 600; margin-bottom: 5px;">${perfDetails.topBinome.nom}</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
+              <div>
+                <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.count}</div>
+                <div style="font-size: 9pt; color: #666;">CD Ensemble</div>
+              </div>
+              <div>
+                <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.moyenneD1}h</div>
+                <div style="font-size: 9pt; color: #666;">D1 Moyen</div>
+              </div>
+              <div>
+                <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.tauxRetoursArchi}%</div>
+                <div style="font-size: 9pt; color: #666;">Taux Retours Archi</div>
+              </div>
+              <div>
+                <div style="font-size: 16pt; font-weight: 600;">${perfDetails.topBinome.tauxCQ}%</div>
+                <div style="font-size: 9pt; color: #666;">Taux CQ</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- RÉPARTITION CONF1/CONF2 -->
+        <div style="margin: 20px 0;">
+          <table style="width: 40%;">
+            <thead>
+              <tr>
+                <th>Position</th>
+                <th>Nombre de CD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Conformateur 1</td>
+                <td class="stat-value">${perfDetails.totalAsConf1}</td>
+              </tr>
+              <tr>
+                <td>Conformateur 2</td>
+                <td class="stat-value">${perfDetails.totalAsConf2}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ANALYSE DES BINÔMES -->
+        ${Object.keys(perfDetails.binomes).length > 0 ? `
+          <div class="section-title">Analyse des Binômes</div>
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Binôme</th>
+                <th>CD Ensemble</th>
+                <th>D1 Moyen</th>
+                <th>Retours Archi</th>
+                <th>Taux Retours</th>
+                <th>CQ Après</th>
+                <th>Taux CQ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(perfDetails.binomes)
+                .map(([id, binome]) => ({id, ...binome}))
+                .sort((a, b) => b.count - a.count)
+                .map(binome => `
+                  <tr${binome.nom === perfDetails.topBinome?.nom ? ' style="background: #ffe; font-weight: 600;"' : ''}>
+                    <td style="text-align: left;">${binome.nom}${binome.nom === perfDetails.topBinome?.nom ? ' 🏆' : ''}</td>
+                    <td class="stat-value">${binome.count}</td>
+                    <td class="stat-value">${binome.moyenneD1}h</td>
+                    <td class="stat-value">${binome.retoursArchi}</td>
+                    <td class="stat-value">${binome.tauxRetoursArchi}%</td>
+                    <td class="stat-value">${binome.cqApres}</td>
+                    <td class="stat-value">${binome.tauxCQ}%</td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <!-- RÉPARTITION PAR TYPE DE MACHINE -->
+        ${Object.keys(perfDetails.machines).length > 0 ? `
+          <div class="section-title">Répartition par Type de Machine</div>
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Type Machine</th>
+                <th>Nombre CD</th>
+                <th>D1 Moyen</th>
+                <th>Retours Archi</th>
+                <th>Taux Retours</th>
+                <th>CQ Après</th>
+                <th>Taux CQ</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(perfDetails.machines)
+                .sort((a, b) => b[1].count - a[1].count)
+                .map(([type, machine]) => `
+                  <tr>
+                    <td style="text-align: left; font-weight: 600;">${type}</td>
+                    <td class="stat-value">${machine.count}</td>
+                    <td class="stat-value">${machine.moyenneD1}h</td>
+                    <td class="stat-value">${machine.retoursArchi}</td>
+                    <td class="stat-value">${machine.tauxRetoursArchi}%</td>
+                    <td class="stat-value">${machine.cqApres}</td>
+                    <td class="stat-value">${machine.tauxCQ}%</td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
 
         ${Object.keys(stats.detailRetoursArchi).length > 0 ? `
           <div class="section-title">Détail Retours Archi</div>
@@ -775,7 +1035,7 @@ class PrintReportsManager {
             <tbody>
               ${Object.entries(stats.detailRetoursArchi).map(([niveau, count]) => `
                 <tr>
-                  <td>Niveau ${niveau}</td>
+                  <td>${this.getQualiteLabel(niveau)}</td>
                   <td class="stat-value">${count}</td>
                 </tr>
               `).join('')}
@@ -816,6 +1076,23 @@ class PrintReportsManager {
   }
 
   // === UTILITAIRES ===
+
+  // Obtenir le label du niveau de qualité
+  getQualiteLabel(qualiteCode) {
+    if (!qualiteCode || qualiteCode === "1") return "-";
+
+    // Chercher dans niveauxQualite
+    if (dbData.niveauxQualite) {
+      const niveau = dbData.niveauxQualite.find(n => n.id === qualiteCode);
+      if (niveau) {
+        return niveau.nom; // Ex: "NIV 2", "NIV 2 CC", "NIV 3"
+      }
+    }
+
+    // Fallback si pas trouvé
+    return `NIV ${qualiteCode}`;
+  }
+
   openPrintWindow(html) {
     this.printWindow = window.open('', '_blank', 'width=1200,height=800');
     this.printWindow.document.write(html);
