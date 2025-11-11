@@ -284,16 +284,16 @@ class MultipleCausesManager {
   // === INCIDENTS MULTIPLES ===
   openIncidentSelector() {
     if (dbData.codesIncident.length === 0) {
-      alert('Aucun code incident disponible');
+      alert('Aucun code panne disponible');
       return;
     }
 
     let html = `
       <div class="modal" id="modalMultipleIncident" style="display: flex;">
         <div class="modal-content modal-large">
-          <h3>Sélectionner les Incidents</h3>
+          <h3>Sélectionner les Pannes</h3>
           <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
-            ✅ Sélectionnez tous les incidents survenus pendant le CD.
+            ✅ Sélectionnez toutes les pannes survenues pendant le CD.
           </p>
 
           <div class="multiple-causes-grid">
@@ -317,19 +317,19 @@ class MultipleCausesManager {
     html += `
           </div>
 
-          <!-- Liste des incidents sélectionnés avec temps individuel -->
+          <!-- Liste des pannes sélectionnées avec temps individuel -->
           <div id="selectedIncidentsDetails" style="margin-top: 20px;">
             <!-- Rempli dynamiquement par updateIncidentDetailsForm() -->
           </div>
 
           <div class="form-group" style="margin-top: 12px;">
-            <label class="form-label">Commentaire global sur les incidents (optionnel)</label>
-            <textarea id="incidentGlobalComment" class="form-control" rows="3" placeholder="Décrivez les circonstances des incidents...">${this.selectedCommentsIncident['global'] || ''}</textarea>
+            <label class="form-label">Commentaire global sur les pannes (optionnel)</label>
+            <textarea id="incidentGlobalComment" class="form-control" rows="3" placeholder="Décrivez les circonstances des pannes...">${this.selectedCommentsIncident['global'] || ''}</textarea>
           </div>
 
           <div class="modal-actions" style="margin-top: 20px;">
             <div class="selected-count">
-              <strong id="incidentCount">${this.selectedCodesIncident.length}</strong> incident(s) sélectionné(s)
+              <strong id="incidentCount">${this.selectedCodesIncident.length}</strong> panne(s) sélectionnée(s)
             </div>
             <button class="btn btn--primary" onclick="multipleCausesManager.validateIncident()">
               Valider la sélection
@@ -383,7 +383,7 @@ class MultipleCausesManager {
 
     let html = `
       <div style="background: var(--color-bg-1); padding: var(--space-16); border-radius: var(--radius-base); border: 1px solid var(--color-border);">
-        <h4 style="margin: 0 0 var(--space-12) 0; color: var(--color-text);">⏱️ Temps d'impact par incident</h4>
+        <h4 style="margin: 0 0 var(--space-12) 0; color: var(--color-text);">⏱️ Temps d'impact par panne</h4>
         <div style="display: grid; gap: var(--space-12);">
     `;
 
@@ -429,7 +429,7 @@ class MultipleCausesManager {
 
   validateIncident() {
     if (this.selectedCodesIncident.length === 0) {
-      alert('Veuillez sélectionner au moins un incident');
+      alert('Veuillez sélectionner au moins une panne');
       return;
     }
 
@@ -455,7 +455,7 @@ class MultipleCausesManager {
     if (!container) return;
 
     if (this.selectedCodesIncident.length === 0) {
-      container.innerHTML = '<span style="color: var(--color-text-secondary);">Aucun incident sélectionné</span>';
+      container.innerHTML = '<span style="color: var(--color-text-secondary);">Aucune panne sélectionnée</span>';
       return;
     }
 

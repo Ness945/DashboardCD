@@ -211,9 +211,9 @@
         <section id="analyse" class="tab-content">
             <h2>📊 Analyse des Problèmes</h2>
 
-            <!-- Analyse des Incidents / Pannes -->
+            <!-- Analyse des Pannes -->
             <div class="section-header">
-                <h3>🔧 Analyse des Pannes et Incidents</h3>
+                <h3>🔧 Analyse des Pannes</h3>
             </div>
             <div id="analyseIncidentsContent">
                 <!-- Rempli par JavaScript -->
@@ -468,29 +468,29 @@
                 </div>
             </div>
 
-            <!-- Section 6: Codes Incidents -->
+            <!-- Section 6: Codes Pannes -->
             <div class="collapsible-section" id="section-codes-incident">
                 <div class="collapsible-header" onclick="toggleCollapsible('section-codes-incident')">
                     <div class="collapsible-icon">⚠️</div>
-                    <h3 class="collapsible-title">Codes Incidents</h3>
+                    <h3 class="collapsible-title">Codes Pannes</h3>
                     <div class="collapsible-chevron">&gt;</div>
                 </div>
                 <div class="collapsible-content">
                     <div class="collapsible-body">
                         <div class="section-description">
-                            <p>Gérez les codes d'incidents utilisés pour documenter les problèmes rencontrés pendant la production (pannes, arrêts, problèmes techniques).</p>
+                            <p>Gérez les codes de pannes utilisés pour documenter les problèmes rencontrés pendant la production (pannes, arrêts, problèmes techniques).</p>
                         </div>
 
                         <div class="filter-section">
                             <label class="form-label">🔍 Rechercher :</label>
-                            <input type="text" id="searchCodesIncident" class="form-control" placeholder="Rechercher un code incident..." onkeyup="filtrerCodesIncident()" style="max-width: 350px;">
+                            <input type="text" id="searchCodesIncident" class="form-control" placeholder="Rechercher un code panne..." onkeyup="filtrerCodesIncident()" style="max-width: 350px;">
                         </div>
 
                         <div class="admin-form-card">
-                            <h4 class="form-card-title">Ajouter un nouveau code incident</h4>
+                            <h4 class="form-card-title">Ajouter un nouveau code panne</h4>
                             <div class="form-group-horizontal">
-                                <input type="text" id="newCodeIncidentCode" placeholder="Code (ex: INC001)" class="form-control" style="flex: 1;">
-                                <input type="text" id="newCodeIncidentDesc" placeholder="Description de l'incident" class="form-control" style="flex: 3;">
+                                <input type="text" id="newCodeIncidentCode" placeholder="Code (ex: PAN001)" class="form-control" style="flex: 1;">
+                                <input type="text" id="newCodeIncidentDesc" placeholder="Description de la panne" class="form-control" style="flex: 3;">
                                 <button class="btn btn--primary" onclick="ajouterCodeIncident()">
                                     <span>➕</span> Ajouter
                                 </button>
@@ -676,13 +676,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Incident</label>
+                    <label class="form-label">Panne</label>
                     <div class="badge-group">
                         <button type="button" class="badge-btn" data-value="Oui">Oui</button>
                         <button type="button" class="badge-btn" data-value="Non">Non</button>
                     </div>
                     <input type="hidden" id="cdIncident" required>
-                    <!-- Zone d'affichage des codes Incident sélectionnés -->
+                    <!-- Zone d'affichage des codes Panne sélectionnés -->
                     <div id="selectedIncidentDisplay" class="selected-causes-display" style="display: none;">
                         <div class="selected-causes-list" id="selectedIncidentList"></div>
                     </div>
@@ -792,7 +792,7 @@
                             <th>Retour Archi</th>
                             <th onclick="trierHistorique('performance')">Perf</th>
                             <th>CQ Après CD</th>
-                            <th>Incident</th>
+                            <th>Panne</th>
                             <th>Anomalie</th>
                             <th>Tags</th>
                             <th>Actions</th>
@@ -900,7 +900,7 @@
                         <ul style="list-style-position: outside; margin-left: var(--space-20); line-height: 1.8; color: var(--color-text-secondary);">
                             <li>Liste des opérateurs</li>
                             <li>Liste des machines</li>
-                            <li>Codes Retour Archi, codes CQ et codes incidents</li>
+                            <li>Codes Retour Archi, codes CQ et codes pannes</li>
                             <li>Tous les CD enregistrés avec leurs données complètes</li>
                             <li>Configuration des niveaux de qualité et scores</li>
                         </ul>
@@ -956,10 +956,10 @@
         </div>
     </div>
 
-    <!-- Modal Incident -->
+    <!-- Modal Panne -->
     <div id="modalIncident" class="modal">
         <div class="modal-content">
-            <h3>Détails de l'incident</h3>
+            <h3>Détails de la panne</h3>
             <select id="codeIncidentSelect" class="form-control">
                 <option value="">-- Sélectionner un code --</option>
             </select>
@@ -967,7 +967,7 @@
                 <label for="tempsImpactIncident">Temps d'impact (en minutes)</label>
                 <input type="number" id="tempsImpactIncident" class="form-control" min="0" placeholder="Durée de l'impact en minutes">
             </div>
-            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur l'incident" style="margin-top: var(--space-12);"></textarea>
+            <textarea id="commentaireIncident" class="form-control" rows="3" placeholder="Commentaire sur la panne" style="margin-top: var(--space-12);"></textarea>
             <div class="modal-actions">
                 <button class="btn btn--primary" onclick="validerIncident()">Valider</button>
                 <button class="btn btn--secondary" onclick="fermerModal('modalIncident')">Annuler</button>

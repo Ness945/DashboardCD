@@ -195,7 +195,7 @@ class ComparativeStats {
           </div>
 
           <div class="comparison-item">
-            <div class="comparison-label">Taux Incidents</div>
+            <div class="comparison-label">Taux Pannes</div>
             <div class="comparison-value">
               ${current.tauxIncidents}%
               ${getTrendHTML(trends.tauxIncidents)}

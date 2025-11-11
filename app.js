@@ -73,6 +73,7 @@ function rafraichirVuesApresFiltre(){
   try { afficherVueManager && afficherVueManager(); } catch(e){}
   try { afficherMachinePerformance && afficherMachinePerformance(); } catch(e){}
   try { afficherQualite && afficherQualite(); } catch(e){}
+  try { afficherAnalyse && afficherAnalyse(); } catch(e){}
 }
 
 // Base de données en mémoire
@@ -756,7 +757,7 @@ function afficherCodesIncidentFiltered(codes) {
   tbody.innerHTML = '';
   
   if (codes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Aucun code incident trouvé</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Aucun code panne trouvé</td></tr>';
     return;
   }
   
@@ -881,7 +882,7 @@ function validerIncident() {
     tempTempsImpact = tempsImpact ? parseInt(tempsImpact) : 0;
     fermerModal('modalIncident');
   } else {
-    alert('Veuillez sélectionner un code incident');
+    alert('Veuillez sélectionner un code panne');
   }
 }
 
@@ -985,7 +986,7 @@ function enregistrerCD() {
     }
 
     if (incident === 'Oui' && multipleCausesManager.selectedCodesIncident.length === 0) {
-      alert('Veuillez sélectionner au moins un code incident');
+      alert('Veuillez sélectionner au moins un code panne');
       return;
     }
   } else {
@@ -1001,7 +1002,7 @@ function enregistrerCD() {
     }
 
     if (incident === 'Oui' && !tempCodeIncident) {
-      alert('Veuillez sélectionner un code incident');
+      alert('Veuillez sélectionner un code panne');
       return;
     }
   }
@@ -1212,7 +1213,7 @@ function afficherHistorique(filteredData = null) {
 
         cqContent = `
           <div class="multiple-codes-tooltip">
-            <span class="status status--error" style="cursor: pointer;">CQ (${cd.codesCQ.length})</span>
+            <span class="status status--error" style="cursor: pointer;">CQ</span>
             <span class="tooltip-content">${codesList}</span>
           </div>
         `;
@@ -1222,9 +1223,9 @@ function afficherHistorique(filteredData = null) {
         const codeCQ = dbData.codesCQ.find(c => c.id === cd.codeCQ);
         if (codeCQ) {
           cqContent = `
-            <div class="tooltip">
+            <div class="multiple-codes-tooltip">
               <span class="status status--error" style="cursor: pointer;">CQ</span>
-              <span class="tooltiptext">
+              <span class="tooltip-content">
                 <strong>CQ Post CD</strong><br>
                 Code: <strong>${codeCQ.code}</strong><br>
                 ${codeCQ.description}
@@ -1251,7 +1252,7 @@ function afficherHistorique(filteredData = null) {
 
         qualiteContent = `
           <div class="multiple-codes-tooltip">
-            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel} (${cd.codesQualite.length})</span>
+            <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
             <span class="tooltip-content">${codesList}</span>
           </div>
         `;
@@ -1261,9 +1262,9 @@ function afficherHistorique(filteredData = null) {
         const codeQualite = dbData.codesQualite.find(c => c.id === cd.codeQualite);
         if (codeQualite) {
           qualiteContent = `
-            <div class="tooltip">
+            <div class="multiple-codes-tooltip">
               <span class="status ${qualiteClass}" style="cursor: pointer;">${qualiteLabel}</span>
-              <span class="tooltiptext">
+              <span class="tooltip-content">
                 <strong>Code Retour Archi:</strong><br>
                 ${codeQualite.code} - ${codeQualite.description}
               </span>
@@ -4104,7 +4105,7 @@ function afficherAnalyseIncidents() {
   const cdAvecIncident = cdActifs.filter(cd => cd.incident === 'Oui');
   
   if (cdAvecIncident.length === 0) {
-    document.getElementById('analyseIncidentsContent').innerHTML = '<div class="empty-state"><p>Aucun incident enregistré</p></div>';
+    document.getElementById('analyseIncidentsContent').innerHTML = '<div class="empty-state"><p>Aucune panne enregistrée</p></div>';
     return;
   }
 
@@ -4207,11 +4208,11 @@ function afficherAnalyseIncidents() {
   let html = `
     <div class="stats-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
       <div class="stat-card" style="background: linear-gradient(135deg, #D32F2F 0%, #B71C1C 100%); color: white;">
-        <h4 style="color: white;">Total Incidents</h4>
+        <h4 style="color: white;">Total Pannes</h4>
         <div class="value" style="color: white;">${nbIncidents}</div>
       </div>
       <div class="stat-card" style="background: linear-gradient(135deg, #F57C00 0%, #E65100 100%); color: white;">
-        <h4 style="color: white;">Taux d'Incidents</h4>
+        <h4 style="color: white;">Taux de Pannes</h4>
         <div class="value" style="color: white;">${tauxIncidents}<span class="unit">%</span></div>
       </div>
       <div class="stat-card" style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%); color: white;">
@@ -4226,7 +4227,7 @@ function afficherAnalyseIncidents() {
 
     <div class="section-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24);">
       <div>
-        <h4 style="margin-bottom: var(--space-16);">Top Codes Incidents</h4>
+        <h4 style="margin-bottom: var(--space-16);">Top Codes Pannes</h4>
         <div class="table-container">
           <table>
             <thead>
@@ -4254,14 +4255,14 @@ function afficherAnalyseIncidents() {
       </div>
 
       <div>
-        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec Incidents</h4>
+        <h4 style="margin-bottom: var(--space-16);">Top 10 Machines avec Pannes</h4>
         <div class="table-container">
           <table>
             <thead>
               <tr>
                 <th>Machine</th>
                 <th>Type</th>
-                <th>Nb Incidents</th>
+                <th>Nb Pannes</th>
               </tr>
             </thead>
             <tbody>
