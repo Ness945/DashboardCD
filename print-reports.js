@@ -1130,40 +1130,57 @@ class PrintReportsManager {
       filename = `rapport-${new Date().toISOString().split('T')[0]}.pdf`;
     }
 
-    // Créer un conteneur temporaire pour le HTML
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    document.body.appendChild(container);
-
-    // Options pour html2pdf
-    const opt = {
-      margin: [6, 6, 6, 6],
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-
     // Vérifier si html2pdf est disponible
     if (typeof html2pdf !== 'undefined') {
-      // Générer et télécharger le PDF
-      html2pdf().set(opt).from(container).save().then(() => {
-        document.body.removeChild(container);
-      });
+      // Créer un iframe temporaire pour générer le PDF
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '297mm'; // A4 landscape width
+      iframe.style.height = '210mm'; // A4 landscape height
+      document.body.appendChild(iframe);
+
+      // Écrire le HTML dans l'iframe
+      const iframeDoc = iframe.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      // Options pour html2pdf
+      const opt = {
+        margin: [6, 6, 6, 6],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+
+      // Attendre que le contenu soit chargé puis générer le PDF
+      setTimeout(() => {
+        html2pdf().set(opt).from(iframeDoc.body).save().then(() => {
+          document.body.removeChild(iframe);
+        }).catch(err => {
+          console.error('Erreur génération PDF:', err);
+          document.body.removeChild(iframe);
+          alert('Erreur lors de la génération du PDF. Ouverture de la fenêtre d\'impression...');
+          this.openPrintWindowFallback(html);
+        });
+      }, 500);
     } else {
       // Fallback: ouvrir fenêtre d'impression classique
-      document.body.removeChild(container);
-      this.printWindow = window.open('', '_blank', 'width=1200,height=800');
-      this.printWindow.document.write(html);
-      this.printWindow.document.close();
-      this.printWindow.onload = function() {
-        setTimeout(() => {
-          this.print();
-        }, 500);
-      };
+      this.openPrintWindowFallback(html);
     }
+  }
+
+  openPrintWindowFallback(html) {
+    this.printWindow = window.open('', '_blank', 'width=1200,height=800');
+    this.printWindow.document.write(html);
+    this.printWindow.document.close();
+    this.printWindow.onload = function() {
+      setTimeout(() => {
+        this.print();
+      }, 500);
+    };
   }
 
   formatDate(date) {
