@@ -146,22 +146,32 @@ class PrintReportsManager {
         }
       }
 
-      // Pannes
+      // Pannes - gérer les pannes multiples
       if (cd.incident === "Oui") {
-        stats.totalPannes++;
+        // Vérifier s'il y a plusieurs codes pannes (array) ou un seul
+        const codesIncidentList = Array.isArray(cd.codesIncident) ? cd.codesIncident :
+                                   (cd.codeIncident ? [cd.codeIncident] : []);
 
-        // Détail par code panne
-        if (cd.codeIncident) {
-          const codePanne = dbData.codesIncident.find(c => c.id === cd.codeIncident);
-          if (codePanne) {
-            if (!stats.detailPannes[codePanne.code]) {
-              stats.detailPannes[codePanne.code] = {
-                description: codePanne.description,
-                count: 0
-              };
+        if (codesIncidentList.length > 0) {
+          stats.totalPannes += codesIncidentList.length; // Compter chaque panne
+
+          const tempsPanne = cd.tempsPanne && !isNaN(cd.tempsPanne) ? parseFloat(cd.tempsPanne) : 0;
+          const tempsParPanne = tempsPanne / codesIncidentList.length;
+
+          codesIncidentList.forEach(codeId => {
+            const codePanne = dbData.codesIncident.find(c => c.id === codeId);
+            if (codePanne) {
+              if (!stats.detailPannes[codePanne.code]) {
+                stats.detailPannes[codePanne.code] = {
+                  description: codePanne.description,
+                  count: 0,
+                  tempsTotal: 0
+                };
+              }
+              stats.detailPannes[codePanne.code].count++;
+              stats.detailPannes[codePanne.code].tempsTotal += tempsParPanne;
             }
-            stats.detailPannes[codePanne.code].count++;
-          }
+          });
         }
       }
     });
@@ -220,23 +230,47 @@ class PrintReportsManager {
         stats.totalCQApres++;
       }
 
-      // Pannes
+      // Pannes - gérer les pannes multiples
       let panneInfo = '-';
+      let totalTempsPanne = 0;
+      const pannesArray = [];
+
       if (cd.incident === "Oui") {
-        stats.totalPannes++;
+        // Vérifier s'il y a plusieurs codes pannes (array) ou un seul
+        const codesIncidentList = Array.isArray(cd.codesIncident) ? cd.codesIncident :
+                                   (cd.codeIncident ? [cd.codeIncident] : []);
 
-        if (cd.codeIncident) {
-          const codePanne = dbData.codesIncident.find(c => c.id === cd.codeIncident);
-          if (codePanne) {
-            panneInfo = codePanne.code;
+        if (codesIncidentList.length > 0) {
+          stats.totalPannes += codesIncidentList.length; // Compter chaque panne
 
-            if (!stats.detailPannes[codePanne.code]) {
-              stats.detailPannes[codePanne.code] = {
-                description: codePanne.description,
-                count: 0
-              };
+          codesIncidentList.forEach(codeId => {
+            const codePanne = dbData.codesIncident.find(c => c.id === codeId);
+            if (codePanne) {
+              pannesArray.push(codePanne.code);
+
+              if (!stats.detailPannes[codePanne.code]) {
+                stats.detailPannes[codePanne.code] = {
+                  description: codePanne.description,
+                  count: 0,
+                  tempsTotal: 0
+                };
+              }
+              stats.detailPannes[codePanne.code].count++;
             }
-            stats.detailPannes[codePanne.code].count++;
+          });
+
+          panneInfo = pannesArray.join(', ');
+
+          // Ajouter le temps de panne si disponible
+          if (cd.tempsPanne && !isNaN(cd.tempsPanne)) {
+            totalTempsPanne = parseFloat(cd.tempsPanne);
+            // Répartir le temps sur toutes les pannes du CD
+            const tempsParPanne = totalTempsPanne / pannesArray.length;
+            pannesArray.forEach(codeP => {
+              if (stats.detailPannes[codeP]) {
+                stats.detailPannes[codeP].tempsTotal += tempsParPanne;
+              }
+            });
           }
         }
       }
@@ -245,8 +279,8 @@ class PrintReportsManager {
       const conf1 = dbData.operateurs.find(op => op.id === cd.conf1);
       const conf2 = dbData.operateurs.find(op => op.id === cd.conf2);
 
-      // Label de qualité
-      const qualiteLabel = this.getQualiteLabel(cd.qualite);
+      // Retour Archi - afficher le NIV au lieu de la qualité brute
+      const retourArchiLabel = (cd.qualite && cd.qualite !== "1") ? this.getQualiteLabel(cd.qualite) : '-';
 
       // Détail CQ
       let cqInfo = '-';
@@ -263,16 +297,22 @@ class PrintReportsManager {
         }
       }
 
+      // Panne avec temps si disponible
+      let panneDisplay = panneInfo;
+      if (totalTempsPanne > 0) {
+        panneDisplay = panneInfo + ' (' + totalTempsPanne.toFixed(1) + 'min)';
+      }
+
       stats.cdList.push({
         heure: cd.heure || '-',
         cai: cd.cai || '-',
         dimension: cd.dimension || '-',
-        conf1: conf1 ? conf1.nom : '-',
-        conf2: conf2 ? conf2.nom : '-',
+        pnc: conf1 ? conf1.nom : '-',  // Renommé de conf1 à pnc
+        pns: conf2 ? conf2.nom : '-',  // Renommé de conf2 à pns
         d1: d1Value.toFixed(2) + 'h',
-        qualite: qualiteLabel,
+        retourArchi: retourArchiLabel,  // Remplace qualite
         cqApres: cqInfo,
-        panne: panneInfo,
+        panne: panneDisplay,
         commentaire: cd.commentaire || '-'
       });
     });
@@ -492,12 +532,13 @@ class PrintReportsManager {
         <!-- DÉTAIL PANNES GLOBALES -->
         ${Object.keys(globalStats.detailPannes).length > 0 ? `
           <div style="margin-top: 15px; font-weight: 600;">Pannes - Total ${globalStats.totalPannes} :</div>
-          <table style="width: 60%;">
+          <table style="width: 70%;">
             <thead>
               <tr>
                 <th>Code Panne</th>
                 <th>Description</th>
                 <th class="text-center" style="width: 100px;">Nombre</th>
+                <th class="text-center" style="width: 120px;">Temps Total (min)</th>
               </tr>
             </thead>
             <tbody>
@@ -506,6 +547,7 @@ class PrintReportsManager {
                   <td class="bold">${code}</td>
                   <td>${data.description}</td>
                   <td class="text-center bold">${data.count}</td>
+                  <td class="text-center bold">${data.tempsTotal ? data.tempsTotal.toFixed(1) : '-'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -529,11 +571,7 @@ class PrintReportsManager {
           <div class="machine-header">Machine ${stats.numero} - ${stats.type}</div>
 
           <!-- Stats machine -->
-          <div class="stats-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 15px;">
-            <div class="stat-box">
-              <div class="stat-value">${stats.totalCD}</div>
-              <div class="stat-label">CD</div>
-            </div>
+          <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 15px;">
             <div class="stat-box">
               <div class="stat-value">${stats.moyenneD1}h</div>
               <div class="stat-label">D1 Moyen</div>
@@ -557,7 +595,7 @@ class PrintReportsManager {
             <div style="margin: 10px 0; padding: 8px; background: #fff; border: 1px solid #999;">
               <div style="font-weight: 600; margin-bottom: 5px;">Pannes de cette machine :</div>
               ${Object.entries(stats.detailPannes).map(([code, data]) =>
-                `<span style="margin-right: 15px;"><strong>${code}</strong>: ${data.count}x</span>`
+                `<span style="margin-right: 15px;"><strong>${code}</strong>: ${data.count}x${data.tempsTotal ? ' (' + data.tempsTotal.toFixed(1) + 'min)' : ''}</span>`
               ).join('')}
             </div>
           ` : ''}
@@ -569,10 +607,10 @@ class PrintReportsManager {
                 <th>Heure</th>
                 <th>CAI</th>
                 <th>Dimension</th>
-                <th>Conf 1</th>
-                <th>Conf 2</th>
+                <th>PNC</th>
+                <th>PNS</th>
                 <th class="text-center">D1</th>
-                <th class="text-center">Qualité</th>
+                <th class="text-center">Retours Archi</th>
                 <th class="text-center">CQ</th>
                 <th class="text-center">Panne</th>
                 <th>Commentaire</th>
@@ -584,10 +622,10 @@ class PrintReportsManager {
                   <td>${cd.heure}</td>
                   <td>${cd.cai}</td>
                   <td>${cd.dimension}</td>
-                  <td>${cd.conf1}</td>
-                  <td>${cd.conf2}</td>
+                  <td>${cd.pnc}</td>
+                  <td>${cd.pns}</td>
                   <td class="text-center bold">${cd.d1}</td>
-                  <td class="text-center">${cd.qualite}</td>
+                  <td class="text-center">${cd.retourArchi}</td>
                   <td class="text-center">${cd.cqApres}</td>
                   <td class="text-center">${cd.panne}</td>
                   <td>${cd.commentaire}</td>
@@ -945,11 +983,11 @@ class PrintReportsManager {
             </thead>
             <tbody>
               <tr>
-                <td>Conformateur 1</td>
+                <td>PNC</td>
                 <td class="stat-value">${perfDetails.totalAsConf1}</td>
               </tr>
               <tr>
-                <td>Conformateur 2</td>
+                <td>PNS</td>
                 <td class="stat-value">${perfDetails.totalAsConf2}</td>
               </tr>
             </tbody>
