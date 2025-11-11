@@ -146,7 +146,7 @@ class PrintReportsManager {
         }
       }
 
-      // Pannes - gérer les pannes multiples
+      // Pannes - gérer les pannes multiples avec temps individuel
       if (cd.incident === "Oui") {
         // Vérifier s'il y a plusieurs codes pannes (array) ou un seul
         const codesIncidentList = Array.isArray(cd.codesIncident) ? cd.codesIncident :
@@ -155,12 +155,14 @@ class PrintReportsManager {
         if (codesIncidentList.length > 0) {
           stats.totalPannes += codesIncidentList.length; // Compter chaque panne
 
-          const tempsPanne = cd.tempsPanne && !isNaN(cd.tempsPanne) ? parseFloat(cd.tempsPanne) : 0;
-          const tempsParPanne = tempsPanne / codesIncidentList.length;
-
           codesIncidentList.forEach(codeId => {
             const codePanne = dbData.codesIncident.find(c => c.id === codeId);
             if (codePanne) {
+              // Récupérer le temps individuel de cette panne
+              const tempsIndividuel = cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]
+                ? parseFloat(cd.tempsImpactIncident[codeId])
+                : 0;
+
               if (!stats.detailPannes[codePanne.code]) {
                 stats.detailPannes[codePanne.code] = {
                   description: codePanne.description,
@@ -169,7 +171,7 @@ class PrintReportsManager {
                 };
               }
               stats.detailPannes[codePanne.code].count++;
-              stats.detailPannes[codePanne.code].tempsTotal += tempsParPanne;
+              stats.detailPannes[codePanne.code].tempsTotal += tempsIndividuel;
             }
           });
         }
@@ -230,10 +232,9 @@ class PrintReportsManager {
         stats.totalCQApres++;
       }
 
-      // Pannes - gérer les pannes multiples
+      // Pannes - gérer les pannes multiples avec temps individuel
       let panneInfo = '-';
-      let totalTempsPanne = 0;
-      const pannesArray = [];
+      const pannesDetailsArray = [];
 
       if (cd.incident === "Oui") {
         // Vérifier s'il y a plusieurs codes pannes (array) ou un seul
@@ -246,8 +247,12 @@ class PrintReportsManager {
           codesIncidentList.forEach(codeId => {
             const codePanne = dbData.codesIncident.find(c => c.id === codeId);
             if (codePanne) {
-              pannesArray.push(codePanne.code);
+              // Récupérer le temps individuel de cette panne
+              const tempsIndividuel = cd.tempsImpactIncident && cd.tempsImpactIncident[codeId]
+                ? parseFloat(cd.tempsImpactIncident[codeId])
+                : 0;
 
+              // Ajouter au détail des pannes de la machine
               if (!stats.detailPannes[codePanne.code]) {
                 stats.detailPannes[codePanne.code] = {
                   description: codePanne.description,
@@ -256,22 +261,18 @@ class PrintReportsManager {
                 };
               }
               stats.detailPannes[codePanne.code].count++;
+              stats.detailPannes[codePanne.code].tempsTotal += tempsIndividuel;
+
+              // Créer l'affichage de cette panne avec son temps
+              if (tempsIndividuel > 0) {
+                pannesDetailsArray.push(`${codePanne.code} (${tempsIndividuel}min)`);
+              } else {
+                pannesDetailsArray.push(codePanne.code);
+              }
             }
           });
 
-          panneInfo = pannesArray.join(', ');
-
-          // Ajouter le temps de panne si disponible
-          if (cd.tempsPanne && !isNaN(cd.tempsPanne)) {
-            totalTempsPanne = parseFloat(cd.tempsPanne);
-            // Répartir le temps sur toutes les pannes du CD
-            const tempsParPanne = totalTempsPanne / pannesArray.length;
-            pannesArray.forEach(codeP => {
-              if (stats.detailPannes[codeP]) {
-                stats.detailPannes[codeP].tempsTotal += tempsParPanne;
-              }
-            });
-          }
+          panneInfo = pannesDetailsArray.join(', ');
         }
       }
 
@@ -297,12 +298,6 @@ class PrintReportsManager {
         }
       }
 
-      // Panne avec temps si disponible
-      let panneDisplay = panneInfo;
-      if (totalTempsPanne > 0) {
-        panneDisplay = panneInfo + ' (' + totalTempsPanne.toFixed(1) + 'min)';
-      }
-
       stats.cdList.push({
         heure: cd.heure || '-',
         cai: cd.cai || '-',
@@ -312,7 +307,7 @@ class PrintReportsManager {
         d1: d1Value.toFixed(2) + 'h',
         retourArchi: retourArchiLabel,  // Remplace qualite
         cqApres: cqInfo,
-        panne: panneDisplay,
+        panne: panneInfo,  // Chaque panne a déjà son temps individuel
         commentaire: cd.commentaire || '-'
       });
     });
