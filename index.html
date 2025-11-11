@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="comparative-stats.css">
     <link rel="stylesheet" href="visual-alerts.css">
     <link rel="stylesheet" href="multiple-causes.css">
+    <link rel="stylesheet" href="print-reports.css">
 
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -91,6 +92,51 @@
             <!-- KPI Cards -->
             <div class="kpi-container" id="kpiContainer">
                 <!-- Rempli par JavaScript -->
+            </div>
+
+            <!-- Rapports d'Impression -->
+            <div class="section-header" style="margin-top: var(--space-32);">
+                <h3>🖨️ Rapports d'Impression</h3>
+            </div>
+            <div class="print-reports-section" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-20); margin-bottom: var(--space-32);">
+                <!-- Rapport J-1 -->
+                <div class="report-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: var(--space-24); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);">
+                    <div style="display: flex; align-items: center; gap: var(--space-12); margin-bottom: var(--space-16);">
+                        <div style="font-size: 48px;">📊</div>
+                        <div>
+                            <h4 style="margin: 0; font-size: 20px;">Rapport J-1</h4>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Analyse quotidienne</p>
+                        </div>
+                    </div>
+                    <p style="margin: 0 0 var(--space-16) 0; font-size: 14px; opacity: 0.9; line-height: 1.5;">
+                        Vue d'ensemble de la veille : D1 global et par machine, CQ, Retours Archi, durée des pannes
+                    </p>
+                    <div style="display: flex; gap: var(--space-8);">
+                        <button class="btn btn--primary" onclick="printReportsManager.generateDailyReport()" style="flex: 1; background: white; color: #667eea; font-weight: bold;">
+                            🖨️ Générer J-1
+                        </button>
+                        <button class="btn btn--secondary" onclick="openCustomDateReportModal()" style="flex: 1; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                            📅 Date custom
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rapport Performance Individuel -->
+                <div class="report-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: var(--space-24); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);">
+                    <div style="display: flex; align-items: center; gap: var(--space-12); margin-bottom: var(--space-16);">
+                        <div style="font-size: 48px;">🎯</div>
+                        <div>
+                            <h4 style="margin: 0; font-size: 20px;">Performance Individuelle</h4>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Feedback opérateur</p>
+                        </div>
+                    </div>
+                    <p style="margin: 0 0 var(--space-16) 0; font-size: 14px; opacity: 0.9; line-height: 1.5;">
+                        Nombre de CD, Retours Archi, CQ, D1, Score de performance avec détail du calcul
+                    </p>
+                    <button class="btn btn--primary" onclick="openPerformanceReportModal()" style="width: 100%; background: white; color: #f5576c; font-weight: bold;">
+                        🖨️ Générer Rapport Performance
+                    </button>
+                </div>
             </div>
 
             <!-- Statistiques Comparatives -->
@@ -1014,6 +1060,7 @@
     <script src="comparative-stats.js"></script>
     <script src="visual-alerts.js"></script>
     <script src="multiple-causes.js"></script>
+    <script src="print-reports.js"></script>
 
     <!-- Main Application -->
     <script src="app.js"></script>

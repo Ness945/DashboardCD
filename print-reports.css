@@ -1,0 +1,41 @@
+/* === STYLES D'IMPRESSION POUR RAPPORTS === */
+
+/* Règles générales d'impression */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Éviter les coupures dans les éléments importants */
+  .stat-card,
+  .machine-card,
+  .detail-card,
+  .score-detail {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Assurer que les couleurs des graphiques sont imprimées */
+  .bar-fill,
+  .stat-card,
+  .score-banner,
+  .print-header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Styles généraux pour l'écran */
+@media screen {
+  body {
+    background: #f5f5f5;
+    padding: 20px;
+  }
+}
