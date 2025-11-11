@@ -44,8 +44,11 @@ class PrintReportsManager {
     // Générer le HTML
     const html = this.generateReportHTML(targetDate, globalStats, machineStats);
 
-    // Ouvrir la fenêtre d'impression
-    this.openPrintWindow(html);
+    // Générer le nom du fichier PDF
+    const filename = `rapport-j1-${dateStr}.pdf`;
+
+    // Ouvrir la fenêtre d'impression / générer PDF
+    this.openPrintWindow(html, filename);
   }
 
   // === RAPPORT PÉRIODE ===
@@ -91,7 +94,11 @@ class PrintReportsManager {
     const machineStats = this.calculateMachineStats(cdsFiltered);
 
     const html = this.generatePeriodReportHTML(startDate, endDate, globalStats, machineStats, periodLabel);
-    this.openPrintWindow(html);
+
+    // Générer le nom du fichier PDF (réutilise startDateStr et endDateStr déjà définis)
+    const filename = `rapport-${period}-${startDateStr}_${endDateStr}.pdf`;
+
+    this.openPrintWindow(html, filename);
   }
 
   // === CALCUL DES STATISTIQUES GLOBALES ===
@@ -280,8 +287,8 @@ class PrintReportsManager {
       const conf1 = dbData.operateurs.find(op => op.id === cd.conf1);
       const conf2 = dbData.operateurs.find(op => op.id === cd.conf2);
 
-      // Retour Archi - afficher le NIV au lieu de la qualité brute
-      const retourArchiLabel = (cd.qualite && cd.qualite !== "1") ? this.getQualiteLabel(cd.qualite) : '-';
+      // Retour Archi - afficher le NIV (y compris NIV 1)
+      const retourArchiLabel = cd.qualite ? this.getQualiteLabel(cd.qualite) : '-';
 
       // Détail CQ - gérer multiples CQ avec description
       let cqInfo = '-';
@@ -701,7 +708,13 @@ class PrintReportsManager {
     const perfStats = this.calculateGlobalStats(cdsFiltered);
     const perfDetails = this.calculatePerformanceDetails(operateurId, cdsFiltered);
     const html = this.generatePerformanceReportHTML(operateur, perfStats, perfDetails, startDate, endDate);
-    this.openPrintWindow(html);
+
+    // Générer le nom du fichier PDF
+    const operateurNom = operateur.nom.replace(/\s+/g, '-').toLowerCase();
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `rapport-performance-${operateurNom}-${dateStr}.pdf`;
+
+    this.openPrintWindow(html, filename);
   }
 
   // === CALCUL DES DÉTAILS DE PERFORMANCE ===
@@ -1097,13 +1110,13 @@ class PrintReportsManager {
 
   // Obtenir le label du niveau de qualité
   getQualiteLabel(qualiteCode) {
-    if (!qualiteCode || qualiteCode === "1") return "-";
+    if (!qualiteCode) return "-";
 
     // Chercher dans niveauxQualite
     if (dbData.niveauxQualite) {
       const niveau = dbData.niveauxQualite.find(n => n.id === qualiteCode);
       if (niveau) {
-        return niveau.nom; // Ex: "NIV 2", "NIV 2 CC", "NIV 3"
+        return niveau.nom; // Ex: "NIV 1", "NIV 2", "NIV 2 CC", "NIV 3"
       }
     }
 
@@ -1111,15 +1124,46 @@ class PrintReportsManager {
     return `NIV ${qualiteCode}`;
   }
 
-  openPrintWindow(html) {
-    this.printWindow = window.open('', '_blank', 'width=1200,height=800');
-    this.printWindow.document.write(html);
-    this.printWindow.document.close();
-    this.printWindow.onload = function() {
-      setTimeout(() => {
-        this.print();
-      }, 500);
+  openPrintWindow(html, filename = null) {
+    // Générer le nom du fichier si non fourni
+    if (!filename) {
+      filename = `rapport-${new Date().toISOString().split('T')[0]}.pdf`;
+    }
+
+    // Créer un conteneur temporaire pour le HTML
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    document.body.appendChild(container);
+
+    // Options pour html2pdf
+    const opt = {
+      margin: [6, 6, 6, 6],
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
+
+    // Vérifier si html2pdf est disponible
+    if (typeof html2pdf !== 'undefined') {
+      // Générer et télécharger le PDF
+      html2pdf().set(opt).from(container).save().then(() => {
+        document.body.removeChild(container);
+      });
+    } else {
+      // Fallback: ouvrir fenêtre d'impression classique
+      document.body.removeChild(container);
+      this.printWindow = window.open('', '_blank', 'width=1200,height=800');
+      this.printWindow.document.write(html);
+      this.printWindow.document.close();
+      this.printWindow.onload = function() {
+        setTimeout(() => {
+          this.print();
+        }, 500);
+      };
+    }
   }
 
   formatDate(date) {
