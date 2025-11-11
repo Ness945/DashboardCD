@@ -8,6 +8,14 @@ class PrintReportsManager {
   // === RAPPORT J-1 (ANALYSE QUOTIDIENNE) ===
   async generateDailyReport(dateParam) {
     console.log('🔍 generateDailyReport appelé avec:', dateParam);
+
+    // Vérifier que dbData est chargé
+    if (!window.dbData || !window.dbData.cds) {
+      alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
+      console.error('❌ dbData non disponible:', window.dbData);
+      return;
+    }
+
     console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
 
     // Si aucune date fournie, prendre la date du PC actuelle
@@ -50,6 +58,14 @@ class PrintReportsManager {
   // === RAPPORT PÉRIODE (SEMAINE/MOIS) ===
   async generatePeriodReport(period) {
     console.log('🔍 generatePeriodReport appelé avec période:', period);
+
+    // Vérifier que dbData est chargé
+    if (!window.dbData || !window.dbData.cds) {
+      alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
+      console.error('❌ dbData non disponible:', window.dbData);
+      return;
+    }
+
     console.log('📊 Nombre total de CD dans la base:', dbData.cds.length);
 
     const today = new Date();
@@ -395,6 +411,15 @@ class PrintReportsManager {
 
   // === RAPPORT PERFORMANCE INDIVIDUEL ===
   async generatePerformanceReport(operateurId, startDate, endDate) {
+    console.log('🔍 generatePerformanceReport appelé avec:', operateurId, startDate, endDate);
+
+    // Vérifier que dbData est chargé
+    if (!window.dbData || !window.dbData.cds || !window.dbData.operateurs) {
+      alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
+      console.error('❌ dbData non disponible:', window.dbData);
+      return;
+    }
+
     const operateur = dbData.operateurs.find(op => op.id === operateurId);
     if (!operateur) {
       alert('Opérateur non trouvé');
@@ -1005,7 +1030,12 @@ function closeCustomDateReportModal() {
 }
 
 function openPerformanceReportModal() {
-  if (!dbData || !dbData.operateurs || dbData.operateurs.length === 0) {
+  if (!window.dbData || !window.dbData.operateurs) {
+    alert('Erreur : Les données ne sont pas encore chargées. Veuillez patienter quelques instants et réessayer.');
+    return;
+  }
+
+  if (dbData.operateurs.length === 0) {
     alert('Aucun opérateur disponible. Veuillez d\'abord créer des opérateurs dans la section Admin.');
     return;
   }
