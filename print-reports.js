@@ -345,56 +345,56 @@ class PrintReportsManager {
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 15mm;
+            margin: 8mm;
             background: #fff;
             color: #000;
-            font-size: 10pt;
+            font-size: 8pt;
           }
 
           .header {
             text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #000;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
           }
           .header h1 {
-            font-size: 20pt;
+            font-size: 16pt;
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
           }
           .header .date {
-            font-size: 12pt;
+            font-size: 10pt;
             color: #333;
           }
 
           .section-title {
-            font-size: 14pt;
+            font-size: 11pt;
             font-weight: 600;
-            margin: 20px 0 10px 0;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #000;
+            margin: 12px 0 6px 0;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #000;
             text-transform: uppercase;
           }
 
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0 20px 0;
+            margin: 5px 0 10px 0;
           }
 
           th {
             background: #e0e0e0;
-            padding: 8px;
+            padding: 4px 5px;
             text-align: left;
             font-weight: 600;
-            font-size: 9pt;
+            font-size: 7pt;
             border: 1px solid #666;
           }
 
           td {
-            padding: 6px 8px;
+            padding: 3px 5px;
             border: 1px solid #999;
-            font-size: 9pt;
+            font-size: 7pt;
           }
 
           tbody tr:nth-child(even) {
@@ -406,61 +406,61 @@ class PrintReportsManager {
           .bold { font-weight: 600; }
 
           .machine-block {
-            margin: 20px 0;
-            padding: 15px;
-            border: 2px solid #666;
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #666;
             background: #fafafa;
             page-break-inside: avoid;
           }
 
           .machine-header {
-            font-size: 12pt;
+            font-size: 10pt;
             font-weight: 600;
-            margin-bottom: 10px;
-            padding: 8px;
+            margin-bottom: 6px;
+            padding: 5px;
             background: #d0d0d0;
-            border-left: 5px solid #000;
+            border-left: 3px solid #000;
           }
 
           .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin: 10px 0;
+            gap: 6px;
+            margin: 6px 0;
           }
 
           .stat-box {
-            padding: 10px;
+            padding: 6px;
             background: #fff;
             border: 1px solid #999;
             text-align: center;
           }
 
           .stat-value {
-            font-size: 18pt;
+            font-size: 14pt;
             font-weight: 600;
             color: #000;
           }
 
           .stat-label {
-            font-size: 8pt;
+            font-size: 7pt;
             color: #666;
-            margin-top: 3px;
+            margin-top: 2px;
           }
 
           .footer {
-            margin-top: 30px;
-            padding-top: 10px;
+            margin-top: 10px;
+            padding-top: 5px;
             border-top: 1px solid #999;
             text-align: center;
-            font-size: 8pt;
+            font-size: 6pt;
             color: #666;
           }
 
           @media print {
-            body { margin: 10mm; }
+            body { margin: 6mm; }
             .machine-block { page-break-inside: avoid; }
-            @page { size: A4 landscape; margin: 10mm; }
+            @page { size: A4 landscape; margin: 6mm; }
           }
         </style>
       </head>
@@ -494,7 +494,7 @@ class PrintReportsManager {
 
         <!-- DÉTAIL RETOURS ARCHI -->
         ${Object.keys(globalStats.detailRetoursArchi).length > 0 ? `
-          <table style="width: 50%; margin-top: 15px;">
+          <table style="width: 40%; margin-top: 8px;">
             <thead>
               <tr>
                 <th>Niveau Qualité</th>
@@ -514,8 +514,8 @@ class PrintReportsManager {
 
         <!-- DÉTAIL CQ APRÈS CD -->
         ${Object.keys(globalStats.detailCQ).length > 0 ? `
-          <div style="margin-top: 15px; font-weight: 600;">CQ Après CD - Détail :</div>
-          <table style="width: 60%;">
+          <div style="margin-top: 8px; font-weight: 600; font-size: 9pt;">CQ Après CD - Détail :</div>
+          <table style="width: 50%;">
             <thead>
               <tr>
                 <th>Code CQ</th>
@@ -537,8 +537,8 @@ class PrintReportsManager {
 
         <!-- DÉTAIL PANNES GLOBALES -->
         ${Object.keys(globalStats.detailPannes).length > 0 ? `
-          <div style="margin-top: 15px; font-weight: 600;">Pannes - Total ${globalStats.totalPannes} :</div>
-          <table style="width: 70%;">
+          <div style="margin-top: 8px; font-weight: 600; font-size: 9pt;">Pannes - Total ${globalStats.totalPannes} :</div>
+          <table style="width: 60%;">
             <thead>
               <tr>
                 <th>Code Panne</th>
@@ -561,7 +561,7 @@ class PrintReportsManager {
         ` : ''}
 
         <!-- ANALYSE PAR MACHINE -->
-        <div class="section-title" style="page-break-before: always; margin-top: 30px;">Analyse Détaillée par Machine</div>
+        <div class="section-title" style="margin-top: 15px;">Analyse Détaillée par Machine</div>
     `;
 
     // Trier les machines par numéro
@@ -598,16 +598,16 @@ class PrintReportsManager {
 
           <!-- Détail pannes machine -->
           ${Object.keys(stats.detailPannes).length > 0 ? `
-            <div style="margin: 10px 0; padding: 8px; background: #fff; border: 1px solid #999;">
-              <div style="font-weight: 600; margin-bottom: 5px;">Pannes de cette machine :</div>
+            <div style="margin: 5px 0; padding: 4px; background: #fff; border: 1px solid #999; font-size: 7pt;">
+              <div style="font-weight: 600; margin-bottom: 3px;">Pannes :</div>
               ${Object.entries(stats.detailPannes).map(([code, data]) =>
-                `<span style="margin-right: 15px;"><strong>${code}</strong>: ${data.count}x${data.tempsTotal ? ' (' + data.tempsTotal.toFixed(1) + 'min)' : ''}</span>`
+                `<span style="margin-right: 10px;"><strong>${code}</strong>: ${data.count}x${data.tempsTotal ? ' (' + data.tempsTotal.toFixed(1) + 'min)' : ''}</span>`
               ).join('')}
             </div>
           ` : ''}
 
           <!-- Liste des CD -->
-          <table style="font-size: 8pt; margin-top: 10px;">
+          <table style="font-size: 6.5pt; margin-top: 5px;">
             <thead>
               <tr>
                 <th>Heure</th>
@@ -616,7 +616,7 @@ class PrintReportsManager {
                 <th>PNC</th>
                 <th>PNS</th>
                 <th class="text-center">D1</th>
-                <th class="text-center">Archi Niv 2 / 3</th>
+                <th class="text-center">Archi Niv</th>
                 <th class="text-center">CQ</th>
                 <th class="text-center">Panne</th>
                 <th>Commentaire</th>
